@@ -11,19 +11,22 @@ public class Logic {
     private static final int EMPTY_SPACE = 0;
 
     public static void solveBoard(int[][] board) {
-        ArrayList<Swap> solutionSwaps = new ArrayList<>();
-        getSolution(solutionSwaps, board);
+        ArrayList<Swap> bestSolution = new ArrayList<>();
+        getSolution(bestSolution, new ArrayList<>(), board);
+        System.out.println(bestSolution);
     }
 
-    private static void getSolution(ArrayList<Swap> solutionSwaps, int[][] board) {
+    private static void getSolution(ArrayList<Swap> bestSolution, ArrayList<Swap> solutionSwaps,
+            int[][] board) {
         outer: for (int i = 0; i < board.length; i++) {
             for (int j = 0; j < board[i].length; j++) {
                 if (board[i][j] > 0) {
                     break outer;
                 }
             }
-            if (i == board.length - 1) {
-                System.out.println(solutionSwaps);
+            if (i == board.length - 1 && (bestSolution.isEmpty() || solutionSwaps.size() < bestSolution.size())) {
+                bestSolution.clear();
+                bestSolution.addAll(solutionSwaps);
                 return;
             }
         }
@@ -33,7 +36,7 @@ public class Logic {
             swapNumbers(swap.getX(), swap.getY(), swap.isDown(), board);
             collapseThreeInRowOrMore(board);
             solutionSwaps.add(swap);
-            getSolution(solutionSwaps, board);
+            getSolution(bestSolution, solutionSwaps, board);
             solutionSwaps.removeLast();
             board = oldBoard;
         }
@@ -182,6 +185,7 @@ public class Logic {
         return newBoard;
     }
 
+    @Deprecated
     @SuppressWarnings(value = { "unused" })
     private static void printBoard(int[][] board) {
         for (int i = 0; i < board.length; i++) {
@@ -193,6 +197,7 @@ public class Logic {
         System.out.println();
     }
 
+    @Deprecated
     @SuppressWarnings(value = { "unused" })
     private static void getBoard(int[][] board) {
         Scanner scanner = new Scanner(System.in);
