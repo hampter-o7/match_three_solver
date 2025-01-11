@@ -23,7 +23,7 @@ public class MatchThreeSolver extends Application {
         stage.setScene(scene);
         stage.setOnShown(windowEvent -> {
             Controller1 controller = loader.getController();
-            controller.populateBoard();
+            controller.setupBoard();
             scene.setOnMouseClicked(mouseEvent -> {
                 controller.handleMouseClick(mouseEvent);
             });

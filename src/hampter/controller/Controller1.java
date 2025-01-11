@@ -29,6 +29,10 @@ import javafx.stage.Stage;
 
 public class Controller1 {
 
+    private static final int SQUARE_SIZE = 50;
+    private static final Color BACKGROUND_COLOR = Color.rgb(85, 85, 85);
+    private static final Color IMMOVABLE_COLOR = Color.BLACK;
+
     @FXML
     private Slider sliderH;
     @FXML
@@ -45,32 +49,65 @@ public class Controller1 {
     private ColorPicker colorPicker;
     @FXML
     private TilePane tilePane;
-    private int width = 3;
-    private int height = 3;
+
+    private int width = 0;
+    private int height = 0;
     private int sliderMaxSize = 25;
     private Paint selectedColor = null;
     private int counter = -1;
-    private static final int SQUARE_SIZE = 50;
-    private static final Color BACKGROUND_COLOR = Color.rgb(85, 85, 85);
-    private static final Color IMMOVABLE_COLOR = Color.BLACK;
 
     public void initialize() throws FileNotFoundException {
         setupSliders();
-        setupBoard();
         setupButtons();
         setupColors();
     }
 
-    public void populateBoard() {
-        tilePane.getChildren().clear();
-        for (int i = 0; i < height; i++) {
-            for (int j = 0; j < width; j++) {
-                Rectangle rectangle = makeNewBlankRectangle();
-                tilePane.getChildren().add(rectangle);
+    public void setupBoard() {
+        resetBoard();
+    }
+
+    public void handleMouseClick(Event event) {
+        if (event.getTarget() instanceof Rectangle) {
+            Rectangle rectangle = (Rectangle) event.getTarget();
+            if (rectangle.getParent() instanceof StackPane) {
+                colorPicker.show();
+                return;
             }
+            if (rectangle.getParent() instanceof HBox) {
+                selectedColor = rectangle.getFill();
+                return;
+            }
+            if (selectedColor != null) {
+                rectangle.setFill(selectedColor);
+            }
+        } else if (event.getTarget() instanceof Line) {
+            colorPicker.show();
         }
-        Stage stage = (Stage) borderPane.getScene().getWindow();
-        stage.sizeToScene();
+    }
+
+    private void setupSliders() {
+        this.sliderH.setMax(sliderMaxSize - 1);
+        this.sliderH.setValue(width - 1);
+        this.sliderH.valueProperty().addListener(new ChangeListener<Number>() {
+            public void changed(ObservableValue<? extends Number> ov, Number old_val, Number new_val) {
+                sliderH.setValue(Math.round(new_val.doubleValue()));
+                int oldWidth = width;
+                width = 1 + (int) Math.round(new_val.doubleValue());
+                extendOrShrinkBoard(true, width - oldWidth);
+            }
+        });
+        this.sliderH.setOnScroll(event -> this.sliderH.setValue(sliderH.getValue() + (event.getDeltaY() < 0 ? 1 : -1)));
+        sliderV.setMax(sliderMaxSize - 1);
+        this.sliderV.setValue(sliderMaxSize - height);
+        this.sliderV.valueProperty().addListener(new ChangeListener<Number>() {
+            public void changed(ObservableValue<? extends Number> ov, Number old_val, Number new_val) {
+                sliderV.setValue(Math.round(new_val.doubleValue()));
+                int oldHeight = height;
+                height = sliderMaxSize - (int) Math.round(new_val.doubleValue());
+                extendOrShrinkBoard(false, height - oldHeight);
+            }
+        });
+        this.sliderV.setOnScroll(event -> this.sliderV.setValue(sliderV.getValue() + (event.getDeltaY() > 0 ? 1 : -1)));
     }
 
     private void extendOrShrinkBoard(boolean isHorizontal, int count) {
@@ -96,8 +133,7 @@ public class Controller1 {
                 }
             }
         }
-        Stage stage = (Stage) borderPane.getScene().getWindow();
-        stage.sizeToScene();
+        this.borderPane.getScene().getWindow().sizeToScene();
     }
 
     private Rectangle makeNewBlankRectangle() {
@@ -109,36 +145,27 @@ public class Controller1 {
         return rectangle;
     }
 
-    private void addColorToColorContainer(Color color) {
-        Rectangle rectangle = new Rectangle(SQUARE_SIZE, SQUARE_SIZE, color);
-        rectangle.setStroke(Color.BLACK);
-        rectangle.setStrokeWidth(3);
-        rectangle.setArcHeight(10);
-        rectangle.setArcWidth(10);
-        rectangle.setId(counter + "");
-        StackPane colorPicker = addColor;
-        colorContainer.getChildren().removeLast();
-        colorContainer.getChildren().addAll(rectangle, colorPicker);
-        counter++;
+    private void setupButtons() {
+        ImageView startImage = setupImage("start");
+        startImage.setOnMouseClicked((event) -> Logic.solveBoard(getBoard()));
+
+        ImageView restartImage = setupImage("restart");
+        restartImage.setOnMouseClicked((event) -> resetBoard());
+
+        ImageView screenshotImage = setupImage("screenshot");
+        screenshotImage.setOnMouseClicked((event) -> setBoardFromScreenShot());
+
+        buttonsContainer.getChildren().addAll(startImage, restartImage, screenshotImage);
     }
 
-    public void handleMouseClick(Event event) {
-        if (event.getTarget() instanceof Rectangle) {
-            Rectangle rectangle = (Rectangle) event.getTarget();
-            if (rectangle.getParent() instanceof StackPane) {
-                colorPicker.show();
-                return;
-            }
-            if (rectangle.getParent() instanceof HBox) {
-                selectedColor = rectangle.getFill();
-                return;
-            }
-            if (selectedColor != null) {
-                rectangle.setFill(selectedColor);
-            }
-        } else if (event.getTarget() instanceof Line) {
-            colorPicker.show();
-        }
+    private ImageView setupImage(String fileName) {
+        ImageView image = new ImageView(
+                new Image(getClass().getResource("../images/" + fileName + ".png").toExternalForm(), false));
+        image.setPreserveRatio(true);
+        image.setFitHeight(SQUARE_SIZE);
+        image.setFitWidth(SQUARE_SIZE);
+        image.setPickOnBounds(true);
+        return image;
     }
 
     private int[][] getBoard() {
@@ -160,92 +187,39 @@ public class Controller1 {
         return board;
     }
 
-    private void setupSliders() {
-        sliderH.setMax(sliderMaxSize);
-        sliderH.setValue(width - 1);
-        sliderH.valueProperty().addListener(new ChangeListener<Number>() {
-            public void changed(ObservableValue<? extends Number> ov, Number old_val, Number new_val) {
-                sliderH.setValue(Math.round(new_val.doubleValue()));
-                int oldWidth = width;
-                width = 1 + (int) Math.round(new_val.doubleValue());
-                extendOrShrinkBoard(true, width - oldWidth);
-            }
-        });
-        sliderH.setOnScroll(event -> {
-            double deltaY = event.getDeltaY();
-            double currentValue = sliderH.getValue();
-            if (deltaY < 0) {
-                sliderH.setValue(currentValue + 1);
-            } else {
-                sliderH.setValue(currentValue - 1);
-            }
-            width = 1 + (int) sliderH.getValue();
-        });
-        sliderV.setMax(sliderMaxSize);
-        sliderV.setValue(sliderMaxSize - height + 1);
-        sliderV.valueProperty().addListener(new ChangeListener<Number>() {
-            public void changed(ObservableValue<? extends Number> ov, Number old_val, Number new_val) {
-                sliderV.setValue(Math.round(new_val.doubleValue()));
-                int oldHeight = height;
-                height = 1 + sliderMaxSize - (int) Math.round(new_val.doubleValue());
-                extendOrShrinkBoard(false, height - oldHeight);
-            }
-        });
-        sliderV.setOnScroll(event -> {
-            double deltaY = event.getDeltaY();
-            double currentValue = sliderV.getValue();
-            if (deltaY > 0) {
-                sliderV.setValue(currentValue + 1);
-            } else {
-                sliderV.setValue(currentValue - 1);
-            }
-            height = 1 + sliderMaxSize - (int) sliderV.getValue();
-        });
+    private void resetBoard() {
+        setHeight(3);
+        setWidth(3);
+        for (Node rectangle : this.tilePane.getChildren()) {
+            ((Rectangle) rectangle).setFill(BACKGROUND_COLOR);
+        }
     }
 
-    private void setupBoard() {
-        this.tilePane.setPrefColumns(width);
-        this.tilePane.setMaxWidth(1 + (SQUARE_SIZE + 10) * width);
-        this.tilePane.setMinWidth(1 + (SQUARE_SIZE + 10) * width);
-    }
-
-    private void setupButtons() {
-        ImageView startImage = new ImageView(
-                new Image(getClass().getResource("../images/start.png").toExternalForm(), false));
-        startImage.setPreserveRatio(true);
-        startImage.setFitHeight(SQUARE_SIZE);
-        startImage.setFitWidth(SQUARE_SIZE);
-        startImage.setPickOnBounds(true);
-        startImage.setOnMouseClicked((event) -> {
-            Logic.solveBoard(getBoard());
-        });
-
-        ImageView restartImage = new ImageView(
-                new Image(getClass().getResource("../images/restart.png").toExternalForm(), false));
-        restartImage.setPreserveRatio(true);
-        restartImage.setFitHeight(SQUARE_SIZE);
-        restartImage.setFitWidth(SQUARE_SIZE);
-        restartImage.setPickOnBounds(true);
-        restartImage.setOnMouseClicked((event) -> {
-            int[][] grid = ScreenShot.takeScreenShot();
-            clearBoard();
-            setHeight(grid.length);
-            setWidth(grid[0].length);
-            ObservableList<Node> list = this.tilePane.getChildren();
-            for (int i = 0; i < height; i++) {
-                for (int j = 0; j < width; j++) {
-                    int rgb = grid[i][j];
-                    double red = ((rgb >> 16) & 0xFF) / 255.0;
-                    double green = ((rgb >> 8) & 0xFF) / 255.0;
-                    double blue = (rgb & 0xFF) / 255.0;
-                    Color color = rgb == -2 ? BACKGROUND_COLOR
-                            : rgb == -1 ? IMMOVABLE_COLOR : new Color(red, green, blue, 1.0);
-                    ((Rectangle) (list.get(i * width + j))).setFill(color);
+    private void setBoardFromScreenShot() {
+        int[][] grid = ScreenShot.takeScreenShot();
+        clearBoard();
+        setHeight(grid.length);
+        setWidth(grid[0].length);
+        ArrayList<Color> colors = new ArrayList<>();
+        ObservableList<Node> list = this.tilePane.getChildren();
+        for (int i = 0; i < height; i++) {
+            for (int j = 0; j < width; j++) {
+                int rgb = grid[i][j];
+                double red = ((rgb >> 16) & 0xFF) / 255.0;
+                double green = ((rgb >> 8) & 0xFF) / 255.0;
+                double blue = (rgb & 0xFF) / 255.0;
+                Color color = rgb == -2 ? BACKGROUND_COLOR
+                        : rgb == -1 ? IMMOVABLE_COLOR : new Color(red, green, blue, 1.0);
+                if (rgb != -1 && rgb != -2 && !colors.contains(color)) {
+                    colors.add(color);
                 }
+                ((Rectangle) (list.get(i * width + j))).setFill(color);
             }
-            // TODO
-        });
-        buttonsContainer.getChildren().addAll(startImage, restartImage);
+        }
+        for (Color color : colors) {
+            addColorToColorContainer(color);
+        }
+        this.borderPane.getScene().getWindow().sizeToScene();
     }
 
     private void setupColors() {
@@ -272,6 +246,20 @@ public class Controller1 {
         addColorToColorContainer(BACKGROUND_COLOR);
     }
 
+    private void addColorToColorContainer(Color color) {
+        Rectangle rectangle = new Rectangle(SQUARE_SIZE, SQUARE_SIZE, color);
+        rectangle.setStroke(Color.BLACK);
+        rectangle.setStrokeWidth(3);
+        rectangle.setArcHeight(10);
+        rectangle.setArcWidth(10);
+        rectangle.setId(counter + "");
+        StackPane colorPicker = addColor;
+        colorContainer.getChildren().removeLast();
+        colorContainer.getChildren().addAll(rectangle, colorPicker);
+        counter++;
+
+    }
+
     private void clearBoard() {
         for (Node rectangle : this.tilePane.getChildren()) {
             ((Rectangle) rectangle).setFill(BACKGROUND_COLOR);
@@ -279,10 +267,10 @@ public class Controller1 {
     }
 
     private void setWidth(int width) {
-        sliderH.setValue(width - 1);
+        this.sliderH.setValue(width - 1);
     }
 
     private void setHeight(int height) {
-        sliderV.setValue(sliderMaxSize - height + 1);
+        this.sliderV.setValue(sliderMaxSize - height);
     }
 }
