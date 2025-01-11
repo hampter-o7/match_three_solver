@@ -1,0 +1,46 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<?import javafx.geometry.Insets?>
+<?import javafx.scene.control.ColorPicker?>
+<?import javafx.scene.control.Slider?>
+<?import javafx.scene.layout.BorderPane?>
+<?import javafx.scene.layout.HBox?>
+<?import javafx.scene.layout.StackPane?>
+<?import javafx.scene.layout.TilePane?>
+<?import javafx.scene.layout.VBox?>
+
+<BorderPane fx:id="borderPane" style="-fx-background-color: #555555;" xmlns="http://javafx.com/javafx/21" xmlns:fx="http://javafx.com/fxml/1" fx:controller="hampter.controller.Controller1">
+   <top>
+      <Slider fx:id="sliderH" BorderPane.alignment="CENTER" />
+   </top>
+   <left>
+      <Slider fx:id="sliderV" orientation="VERTICAL" BorderPane.alignment="CENTER" />
+   </left>
+   <bottom>
+      <HBox fx:id="colorContainer" alignment="CENTER" spacing="5.0" BorderPane.alignment="CENTER">
+         <padding>
+            <Insets bottom="5.0" left="5.0" right="5.0" top="5.0" />
+         </padding>
+         <children>
+            <StackPane fx:id="addColor">
+               <children>
+                  <ColorPicker fx:id="colorPicker" prefHeight="50.0" prefWidth="50.0" visible="false" />
+               </children>
+            </StackPane>
+         </children></HBox>
+   </bottom>
+   <right>
+      <VBox fx:id="buttonsContainer" alignment="CENTER" spacing="15.0" style="-fx-background-color: transparent;" BorderPane.alignment="CENTER">
+         <BorderPane.margin>
+            <Insets />
+         </BorderPane.margin>
+      </VBox>
+   </right>
+   <center>
+      <TilePane fx:id="tilePane" alignment="CENTER" hgap="5.0" vgap="5.0" BorderPane.alignment="CENTER">
+         <padding>
+            <Insets bottom="5.0" left="5.0" right="5.0" top="5.0" />
+         </padding>
+      </TilePane>
+   </center>
+</BorderPane>
