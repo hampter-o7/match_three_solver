@@ -30,8 +30,10 @@ import javafx.stage.Stage;
 public class Controller1 {
 
     private static final int SQUARE_SIZE = 50;
-    private static final Color BACKGROUND_COLOR = Color.rgb(85, 85, 85);
-    private static final Color IMMOVABLE_COLOR = Color.BLACK;
+    private static final int BACKGROUND = 0x555555;
+    private static final Color BACKGROUND_COLOR = Color.web(String.format("0x%06X", BACKGROUND));
+    private static final int IMMOVABLE = 0x000000;
+    private static final Color IMMOVABLE_COLOR = Color.web(String.format("0x%06X", IMMOVABLE));
 
     @FXML
     private Slider sliderH;
@@ -54,7 +56,6 @@ public class Controller1 {
     private int height = 0;
     private int sliderMaxSize = 25;
     private Paint selectedColor = null;
-    private int counter = -1;
 
     public void initialize() throws FileNotFoundException {
         setupSliders();
@@ -86,9 +87,9 @@ public class Controller1 {
     }
 
     private void setupSliders() {
-        this.sliderH.setMax(sliderMaxSize - 1);
-        this.sliderH.setValue(width - 1);
-        this.sliderH.valueProperty().addListener(new ChangeListener<Number>() {
+        sliderH.setMax(sliderMaxSize - 1);
+        sliderH.setValue(width - 1);
+        sliderH.valueProperty().addListener(new ChangeListener<Number>() {
             public void changed(ObservableValue<? extends Number> ov, Number old_val, Number new_val) {
                 sliderH.setValue(Math.round(new_val.doubleValue()));
                 int oldWidth = width;
@@ -96,10 +97,11 @@ public class Controller1 {
                 extendOrShrinkBoard(true, width - oldWidth);
             }
         });
-        this.sliderH.setOnScroll(event -> this.sliderH.setValue(sliderH.getValue() + (event.getDeltaY() < 0 ? 1 : -1)));
+        sliderH.setOnScroll(
+                event -> sliderH.setValue(sliderH.getValue() + (event.getDeltaY() < 0 ? 1 : -1)));
         sliderV.setMax(sliderMaxSize - 1);
-        this.sliderV.setValue(sliderMaxSize - height);
-        this.sliderV.valueProperty().addListener(new ChangeListener<Number>() {
+        sliderV.setValue(sliderMaxSize - height);
+        sliderV.valueProperty().addListener(new ChangeListener<Number>() {
             public void changed(ObservableValue<? extends Number> ov, Number old_val, Number new_val) {
                 sliderV.setValue(Math.round(new_val.doubleValue()));
                 int oldHeight = height;
@@ -107,20 +109,20 @@ public class Controller1 {
                 extendOrShrinkBoard(false, height - oldHeight);
             }
         });
-        this.sliderV.setOnScroll(event -> this.sliderV.setValue(sliderV.getValue() + (event.getDeltaY() > 0 ? 1 : -1)));
+        sliderV.setOnScroll(event -> sliderV.setValue(sliderV.getValue() + (event.getDeltaY() > 0 ? 1 : -1)));
     }
 
     private void extendOrShrinkBoard(boolean isHorizontal, int count) {
         if (isHorizontal) {
-            this.tilePane.setPrefColumns(width);
-            this.tilePane.setMaxWidth(1 + (SQUARE_SIZE + 10) * width);
-            this.tilePane.setMinWidth(1 + (SQUARE_SIZE + 10) * width);
+            tilePane.setPrefColumns(width);
+            tilePane.setMaxWidth(1 + (SQUARE_SIZE + 10) * width);
+            tilePane.setMinWidth(1 + (SQUARE_SIZE + 10) * width);
             for (int i = height; i > 0; i--) {
                 for (int j = 0; j < Math.abs(count); j++) {
                     if (count > 0) {
                         tilePane.getChildren().add(i * (width - count), makeNewBlankRectangle());
                     } else {
-                        tilePane.getChildren().remove(i * (width - count) - 1);
+                        tilePane.getChildren().remove((height - i + 1) * width);
                     }
                 }
             }
@@ -133,7 +135,7 @@ public class Controller1 {
                 }
             }
         }
-        this.borderPane.getScene().getWindow().sizeToScene();
+        borderPane.getScene().getWindow().sizeToScene();
     }
 
     private Rectangle makeNewBlankRectangle() {
@@ -174,7 +176,7 @@ public class Controller1 {
         colors.add(IMMOVABLE_COLOR);
         colors.add(BACKGROUND_COLOR);
         int i = 0;
-        for (Node rectangle : this.tilePane.getChildren()) {
+        for (Node rectangle : tilePane.getChildren()) {
             Paint color = ((Rectangle) rectangle).getFill();
             int number = colors.indexOf(color);
             if (number == -1) {
@@ -188,38 +190,45 @@ public class Controller1 {
     }
 
     private void resetBoard() {
+        resetColorContainer();
         setHeight(3);
         setWidth(3);
-        for (Node rectangle : this.tilePane.getChildren()) {
+        for (Node rectangle : tilePane.getChildren()) {
             ((Rectangle) rectangle).setFill(BACKGROUND_COLOR);
         }
     }
 
+    private void resetColorContainer() {
+        while (colorContainer.getChildren().size() != 3) {
+            colorContainer.getChildren().remove(2);
+        }
+    }
+
     private void setBoardFromScreenShot() {
-        int[][] grid = ScreenShot.takeScreenShot();
+        int[][] grid = ScreenShot.takeScreenShot(true, BACKGROUND, IMMOVABLE);
         clearBoard();
         setHeight(grid.length);
         setWidth(grid[0].length);
         ArrayList<Color> colors = new ArrayList<>();
-        ObservableList<Node> list = this.tilePane.getChildren();
+        ObservableList<Node> list = tilePane.getChildren();
         for (int i = 0; i < height; i++) {
             for (int j = 0; j < width; j++) {
                 int rgb = grid[i][j];
-                double red = ((rgb >> 16) & 0xFF) / 255.0;
-                double green = ((rgb >> 8) & 0xFF) / 255.0;
-                double blue = (rgb & 0xFF) / 255.0;
-                Color color = rgb == -2 ? BACKGROUND_COLOR
-                        : rgb == -1 ? IMMOVABLE_COLOR : new Color(red, green, blue, 1.0);
-                if (rgb != -1 && rgb != -2 && !colors.contains(color)) {
+                Color color = Color.web(String.format("0x%06X", rgb));
+                if (!colors.contains(color)) {
                     colors.add(color);
                 }
                 ((Rectangle) (list.get(i * width + j))).setFill(color);
             }
         }
+        resetColorContainer();
         for (Color color : colors) {
+            if (color.equals(BACKGROUND_COLOR) || color.equals(IMMOVABLE_COLOR)) {
+                continue;
+            }
             addColorToColorContainer(color);
         }
-        this.borderPane.getScene().getWindow().sizeToScene();
+        borderPane.getScene().getWindow().sizeToScene();
     }
 
     private void setupColors() {
@@ -252,25 +261,21 @@ public class Controller1 {
         rectangle.setStrokeWidth(3);
         rectangle.setArcHeight(10);
         rectangle.setArcWidth(10);
-        rectangle.setId(counter + "");
-        StackPane colorPicker = addColor;
         colorContainer.getChildren().removeLast();
-        colorContainer.getChildren().addAll(rectangle, colorPicker);
-        counter++;
-
+        colorContainer.getChildren().addAll(rectangle, addColor);
     }
 
     private void clearBoard() {
-        for (Node rectangle : this.tilePane.getChildren()) {
+        for (Node rectangle : tilePane.getChildren()) {
             ((Rectangle) rectangle).setFill(BACKGROUND_COLOR);
         }
     }
 
     private void setWidth(int width) {
-        this.sliderH.setValue(width - 1);
+        sliderH.setValue(width - 1);
     }
 
     private void setHeight(int height) {
-        this.sliderV.setValue(sliderMaxSize - height);
+        sliderV.setValue(sliderMaxSize - height);
     }
 }

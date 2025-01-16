@@ -12,12 +12,18 @@ public class Logic {
 
     public static void solveBoard(int[][] board) {
         ArrayList<Swap> bestSolution = new ArrayList<>();
-        getSolution(bestSolution, new ArrayList<>(), board);
+        getSolution(bestSolution, new ArrayList<>(), board, new ArrayList<>());
         System.out.println(bestSolution);
     }
 
     private static void getSolution(ArrayList<Swap> bestSolution, ArrayList<Swap> solutionSwaps,
-            int[][] board) {
+            int[][] board, ArrayList<int[][]> memoTable) {
+        for (int[][] seenBoard : memoTable) {
+            if (isBoardSame(board, seenBoard)) {
+                return;
+            }
+        }
+        memoTable.add(makeBoardCopy(board));
         outer: for (int i = 0; i < board.length; i++) {
             for (int j = 0; j < board[i].length; j++) {
                 if (board[i][j] > 0) {
@@ -36,7 +42,7 @@ public class Logic {
             swapNumbers(swap.getX(), swap.getY(), swap.isDown(), board);
             collapseThreeInRowOrMore(board);
             solutionSwaps.add(swap);
-            getSolution(bestSolution, solutionSwaps, board);
+            getSolution(bestSolution, solutionSwaps, board, memoTable);
             solutionSwaps.removeLast();
             board = oldBoard;
         }

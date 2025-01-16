@@ -4,6 +4,7 @@ import java.awt.image.BufferedImage;
 import java.io.File;
 import java.io.IOException;
 import java.util.ArrayList;
+import java.util.Arrays;
 
 import javax.imageio.ImageIO;
 
@@ -15,16 +16,24 @@ import javafx.scene.robot.Robot;
 
 public class ScreenShot {
 
-    public static int[][] takeScreenShot() {
-        // Robot robot = new Robot();
-        // WritableImage screenCapture = robot.getScreenCapture(null, new
-        // Rectangle2D(538, 119, 1381 - 538, 960 - 119));
-        // BufferedImage image = SwingFXUtils.fromFXImage(screenCapture, null);
+    private static int backgroundColor = 0;
+    private static int immovableColor = 0;
+
+    public static int[][] takeScreenShot(boolean isTest, int background, int immovable) {
+        backgroundColor = background;
+        immovableColor = immovable;
         BufferedImage image = null;
-        try {
-            image = ImageIO.read(new File("input.png"));
-        } catch (IOException e) {
-            e.printStackTrace();
+        if (isTest) {
+            try {
+                image = ImageIO.read(new File("input2.png"));
+            } catch (IOException e) {
+                e.printStackTrace();
+            }
+        } else {
+            Robot robot = new Robot();
+            WritableImage screenCapture = robot.getScreenCapture(null,
+                    new Rectangle2D(538, 119, 1381 - 538, 960 - 119));
+            image = SwingFXUtils.fromFXImage(screenCapture, null);
         }
         int[][] grid = fillOutGrid(image);
         grid = detectSameColors(grid);
@@ -35,6 +44,9 @@ public class ScreenShot {
         int[][] lines = LineCalculator.calculateLines(image, 1, false);
         int squareSize = LineCalculator.getSquareSize(lines);
         int[][] grid = new int[(int) image.getHeight() / squareSize][(int) image.getWidth() / squareSize];
+        for (int i = 0; i < grid.length; i++) {
+            Arrays.fill(grid[i], backgroundColor);
+        }
         int horizontal = lines[0][lines[0].length - 1];
         int vertical = lines[1][0];
         int startJ = -vertical / squareSize;
@@ -54,7 +66,8 @@ public class ScreenShot {
         int redAverage = 0;
         int greenAverage = 0;
         int blueAverage = 0;
-        int isRelevantColor = 0;
+        int isRelevant = 0;
+        int isRelevantThreshold = squareSize * squareSize / 400;
         for (int i = y; i < y + squareSize; i++) {
             for (int j = x; j < x + squareSize; j++) {
                 int rgb = image.getRGB(j, i);
@@ -65,7 +78,7 @@ public class ScreenShot {
                 greenAverage += green;
                 blueAverage += blue;
                 if (red > threshold && green > threshold && blue > threshold) {
-                    isRelevantColor++;
+                    isRelevant++;
                 }
             }
         }
@@ -73,47 +86,41 @@ public class ScreenShot {
         greenAverage /= squareSize * squareSize;
         blueAverage /= squareSize * squareSize;
 
-        return isRelevantColor > 50 ? redAverage << 16 | greenAverage << 8 | blueAverage : -2;
+        return isRelevant > isRelevantThreshold ? redAverage << 16 | greenAverage << 8 | blueAverage : backgroundColor;
     }
 
     private static int[][] cleanupGrid(int[][] grid) {
-        int removeFromTop = 0;
+        int removeFromTop = -1;
         outer: for (int i = 0; i < grid.length; i++) {
             for (int j = 0; j < grid[i].length; j++) {
-                if (grid[i][j] != -2) {
+                if (grid[i][j] != backgroundColor) {
+                    removeFromTop = i;
                     break outer;
                 }
             }
-            removeFromTop++;
         }
         int removeFromLeft = 0;
         int removeFromRight = 0;
         boolean removeLeft = true;
-        outer: for (int i = 0; i < grid[0].length; i++) {
+        for (int i = 0; i < grid[0].length; i++) {
+            boolean setToBlack = false;
             for (int j = 0; j < grid.length; j++) {
-                if (grid[j][i] != -2) {
+                if (grid[j][i] != backgroundColor) {
                     removeLeft = false;
-                    continue outer;
+                    setToBlack = true;
+                } else if (setToBlack) {
+                    grid[j][i] = immovableColor;
                 }
             }
-            if (removeLeft) {
+            if (grid[grid.length - 1][i] != backgroundColor) {
+                continue;
+            } else if (removeLeft) {
                 removeFromLeft++;
             } else {
                 removeFromRight++;
             }
         }
-        for (int i = 0; i < grid[0].length; i++) {
-            boolean setToBlack = false;
-            for (int j = 0; j < grid.length; j++) {
-                if (grid[j][i] != -2) {
-                    setToBlack = true;
-                } else {
-                    if (setToBlack) {
-                        grid[j][i] = -1;
-                    }
-                }
-            }
-        }
+
         int[][] newGrid = new int[grid.length - removeFromTop][grid[0].length - removeFromLeft - removeFromRight];
         for (int i = 0; i < newGrid.length; i++) {
             for (int j = 0; j < newGrid[i].length; j++) {
@@ -124,79 +131,54 @@ public class ScreenShot {
     }
 
     private static int[][] detectSameColors(int[][] grid) {
-        int threshold = 20;
-        ArrayList<ArrayList<int[]>> colors = new ArrayList<>();
+        printGrid(grid);
+        int maxThreshold = 40;
+        ArrayList<ArrayList<Integer>> combinedColors = new ArrayList<>();
         for (int i = grid.length - 1; i >= 0; i--) {
-            outer: for (int j = 0; j < grid[i].length; j++) {
-                if (grid[i][j] == -1) {
+            for (int j = 0; j < grid[i].length; j++) {
+                int rgb = grid[i][j];
+                if (rgb == immovableColor || rgb == backgroundColor) {
                     continue;
                 }
-                int rgb = grid[i][j];
-                int red = (rgb & 0xFF0000) >> 16;
-                int green = (rgb & 0xFF00) >> 8;
-                int blue = rgb & 0xFF;
-                for (ArrayList<int[]> colorShades : colors) {
-                    for (int[] colorShade : colorShades) {
-                        int shadeRGB = colorShade[0];
-                        int red1 = (shadeRGB & 0xFF0000) >> 16;
-                        int green1 = (shadeRGB & 0xFF00) >> 8;
-                        int blue1 = shadeRGB & 0xFF;
-                        if (Math.abs(red - red1) + Math.abs(green - green1) + Math.abs(blue - blue1) < threshold) {
-                            colorShades.add(new int[] { rgb, i, j });
-                            continue outer;
+                int minDifference = maxThreshold;
+                int group = -1;
+                for (int k = 0; k < combinedColors.size(); k++) {
+                    ArrayList<Integer> combined = combinedColors.get(k);
+                    for (int color : combined) {
+                        int difference = calculateRGBdifference(rgb, color);
+                        if (difference < minDifference) {
+                            minDifference = difference;
+                            group = k;
                         }
                     }
                 }
-                ArrayList<int[]> newColorShade = new ArrayList<>();
-                newColorShade.add(new int[] { rgb, i, j });
-                colors.add(newColorShade);
-            }
-        }
-        ArrayList<int[]> tooSmallArrayList = isOneArrayListWithLessThanThreeElements(colors);
-        while (tooSmallArrayList != null) {
-            outer: for (int i = tooSmallArrayList.size() - 1; i >= 0; i--) {
-                int rgb = tooSmallArrayList.get(i)[0];
-                int red = (rgb & 0xFF0000) >> 16;
-                int green = (rgb & 0xFF00) >> 8;
-                int blue = rgb & 0xFF;
-                for (ArrayList<int[]> colorShades : colors) {
-                    for (int[] colorShade : colorShades) {
-                        int shadeRGB = colorShade[0];
-                        int red1 = (shadeRGB & 0xFF0000) >> 16;
-                        int green1 = (shadeRGB & 0xFF00) >> 8;
-                        int blue1 = shadeRGB & 0xFF;
-                        if (Math.abs(red - red1) + Math.abs(green - green1) + Math.abs(blue - blue1) < threshold) {
-                            colorShades.add(tooSmallArrayList.get(i));
-                            tooSmallArrayList.remove(i);
-                            continue outer;
-                        }
-                    }
+                if (group == -1) {
+                    ArrayList<Integer> newCombinedColor = new ArrayList<>();
+                    newCombinedColor.add(rgb);
+                    combinedColors.add(newCombinedColor);
+                } else {
+                    grid[i][j] = combinedColors.get(group).get(0);
+                    combinedColors.get(group).add(rgb);
                 }
             }
-            if (tooSmallArrayList.isEmpty()) {
-                tooSmallArrayList = isOneArrayListWithLessThanThreeElements(colors);
-                threshold = 10;
-            } else {
-                threshold += 1;
-            }
         }
-        int[][] newGrid = new int[grid.length][grid[0].length];
-        for (ArrayList<int[]> color : colors) {
-            int rgb = color.get(0)[0];
-            for (int[] cords : color) {
-                newGrid[cords[1]][cords[2]] = rgb;
-            }
-        }
-        return newGrid;
+        return grid;
     }
 
-    private static ArrayList<int[]> isOneArrayListWithLessThanThreeElements(ArrayList<ArrayList<int[]>> colors) {
-        for (ArrayList<int[]> color : colors) {
-            if (color.size() < 3) {
-                colors.remove(color);
-                return color;
+    private static int calculateRGBdifference(int rgb1, int rgb2) {
+        int diffR = Math.abs(((rgb1 >> 16) & 0xFF) - ((rgb2 >> 16) & 0xFF));
+        int diffG = Math.abs(((rgb1 >> 8) & 0xFF) - ((rgb2 >> 8) & 0xFF));
+        int diffB = Math.abs((rgb1 & 0xFF) - (rgb2 & 0xFF));
+        return (int) Math.sqrt(diffR * diffR + diffG * diffG + diffB * diffB);
+    }
+
+    @SuppressWarnings("unused")
+    private static void printGrid(int[][] grid) {
+        for (int i = 0; i < grid.length; i++) {
+            for (int j = 0; j < grid[i].length; j++) {
+                System.out.print(String.format("%06X ", grid[i][j]));
             }
+            System.out.println();
         }
-        return null;
     }
 }
