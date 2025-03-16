@@ -24,13 +24,20 @@ public class ScreenShot {
     private static int backgroundColor = 0;
     private static int immovableColor = 0;
 
-    public static int[][] takeScreenShot(boolean isTest, int background, int immovable) {
+    public static int[][] takeScreenShot(boolean isTest, int background, int immovable, int[] leftBottomCornerCords,
+            int[] squareSize) {
         backgroundColor = background;
         immovableColor = immovable;
-        BufferedImage image = null;
+        BufferedImage image = getImage(isTest);
+        int[][] grid = fillOutGrid(image, leftBottomCornerCords, squareSize);
+        grid = detectSameColors(grid);
+        return grid;
+    }
+
+    private static BufferedImage getImage(boolean isTest) {
         if (isTest) {
             try {
-                image = ImageIO.read(new File("input1.png"));
+                return ImageIO.read(new File("input1.png"));
             } catch (IOException e) {
                 e.printStackTrace();
             }
@@ -39,28 +46,28 @@ public class ScreenShot {
             WritableImage screenCapture = robot.getScreenCapture(null,
                     new Rectangle2D(LEFT_UPPER_SCREENSHOT_X, LEFT_UPPER_SCREENSHOT_Y, SCREENSHOT_WIDTH,
                             SCREENSHOT_HEIGHT));
-            image = SwingFXUtils.fromFXImage(screenCapture, null);
+            return SwingFXUtils.fromFXImage(screenCapture, null);
         }
-        int[][] grid = fillOutGrid(image);
-        grid = detectSameColors(grid);
-        return grid;
+        return null;
     }
 
-    private static int[][] fillOutGrid(BufferedImage image) {
+    private static int[][] fillOutGrid(BufferedImage image, int[] leftBottomCornerCords, int[] squareSize) {
         int[][] lines = LineCalculator.calculateLines(image, 1, false);
-        int squareSize = LineCalculator.getSquareSize(lines);
-        int[][] grid = new int[(int) image.getHeight() / squareSize][(int) image.getWidth() / squareSize];
+        squareSize[0] = LineCalculator.getSquareSize(lines);
+        int[][] grid = new int[(int) image.getHeight() / squareSize[0]][(int) image.getWidth() / squareSize[0]];
         for (int i = 0; i < grid.length; i++) {
             Arrays.fill(grid[i], backgroundColor);
         }
         int horizontal = lines[0][lines[0].length - 1];
         int vertical = lines[1][0];
-        int startJ = -vertical / squareSize;
-        for (int i = 1; horizontal - i * squareSize > 0; i++) {
-            int y = horizontal - i * squareSize;
-            for (int j = startJ; vertical + (j + 1) * squareSize < image.getWidth(); j++) {
-                int x = vertical + j * squareSize;
-                grid[grid.length - i][j - startJ] = calculateAverageColor(image, x, y, squareSize);
+        leftBottomCornerCords[0] = LEFT_UPPER_SCREENSHOT_X + vertical;
+        leftBottomCornerCords[1] = LEFT_UPPER_SCREENSHOT_Y + horizontal;
+        int startJ = -vertical / squareSize[0];
+        for (int i = 1; horizontal - i * squareSize[0] > 0; i++) {
+            int y = horizontal - i * squareSize[0];
+            for (int j = startJ; vertical + (j + 1) * squareSize[0] < image.getWidth(); j++) {
+                int x = vertical + j * squareSize[0];
+                grid[grid.length - i][j - startJ] = calculateAverageColor(image, x, y, squareSize[0]);
             }
         }
         grid = cleanupGrid(grid);

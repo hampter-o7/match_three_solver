@@ -1,11 +1,15 @@
 package hampter.controller;
 
+import java.awt.MouseInfo;
+import java.awt.Point;
 import java.io.FileNotFoundException;
 import java.util.ArrayList;
 
 import hampter.logic.Logic;
 import hampter.logic.ScreenShot;
 import hampter.util.Swap;
+import javafx.animation.KeyFrame;
+import javafx.animation.Timeline;
 import javafx.beans.value.ChangeListener;
 import javafx.beans.value.ObservableValue;
 import javafx.collections.ObservableList;
@@ -17,6 +21,7 @@ import javafx.scene.control.Label;
 import javafx.scene.control.Slider;
 import javafx.scene.image.Image;
 import javafx.scene.image.ImageView;
+import javafx.scene.input.MouseButton;
 import javafx.scene.layout.BorderPane;
 import javafx.scene.layout.HBox;
 import javafx.scene.layout.StackPane;
@@ -24,12 +29,14 @@ import javafx.scene.layout.TilePane;
 import javafx.scene.layout.VBox;
 import javafx.scene.paint.Color;
 import javafx.scene.paint.Paint;
+import javafx.scene.robot.Robot;
 import javafx.scene.shape.Line;
 import javafx.scene.shape.Rectangle;
 import javafx.scene.shape.StrokeLineCap;
 import javafx.scene.text.Font;
 import javafx.scene.text.FontWeight;
 import javafx.stage.Stage;
+import javafx.util.Duration;
 
 public class Controller1 {
 
@@ -64,6 +71,8 @@ public class Controller1 {
     private int height = 0;
     private int sliderMaxSize = 25;
     private Paint selectedColor = null;
+    private int[] squareSize = { -1 };
+    private int[] leftBottomCornerCords = new int[2];
 
     public void initialize() throws FileNotFoundException {
         setupSliders();
@@ -169,10 +178,12 @@ public class Controller1 {
     }
 
     private void colorInSolutionLines() {
+        ArrayList<Swap> swaps = Logic.solveBoard(getBoard());
+        if (swaps.size() == 0) {
+            return;
+        }
         verticalLinesTilePane.setDisable(false);
         horizontalLinesTilePane.setDisable(false);
-        ArrayList<Swap> swaps = Logic.solveBoard(getBoard());
-        System.out.println(swaps);
         for (Swap swap : swaps) {
             if (swap.isDown()) {
                 StackPane stackPane = (StackPane) verticalLinesTilePane.getChildren()
@@ -190,6 +201,39 @@ public class Controller1 {
                 stackPane.getChildren().add(label);
             }
         }
+        performAllMouseClicks(swaps);
+    }
+
+    private void performAllMouseClicks(ArrayList<Swap> swaps) {
+        Point originalMousePos = MouseInfo.getPointerInfo().getLocation();
+        Timeline timeline = new Timeline();
+        int delay = 100;
+        for (Swap swap : swaps) {
+            int x1 = leftBottomCornerCords[0] + squareSize[0] / 2 + swap.getY() * squareSize[0];
+            int y1 = leftBottomCornerCords[1] - squareSize[0] / 2 - (height - 1 - swap.getX()) * squareSize[0];
+
+            int x2 = x1 + (swap.isDown() ? 0 : squareSize[0]);
+            int y2 = y1 + (swap.isDown() ? squareSize[0] : 0);
+
+            timeline.getKeyFrames().add(new KeyFrame(Duration.millis(delay), e -> clickMouse(x1, y1)));
+            delay += 100;
+
+            timeline.getKeyFrames().add(new KeyFrame(Duration.millis(delay), e -> clickMouse(x2, y2)));
+            delay += 1200;
+        }
+
+        timeline.getKeyFrames().add(new KeyFrame(Duration.millis(delay), e -> {
+            Robot robot = new Robot();
+            robot.mouseMove(originalMousePos.x, originalMousePos.y);
+        }));
+
+        timeline.play();
+    }
+
+    private void clickMouse(int x, int y) {
+        Robot robot = new Robot();
+        robot.mouseMove(x, y);
+        robot.mouseClick(MouseButton.SECONDARY);
     }
 
     private ImageView setupImage(String fileName) {
@@ -239,7 +283,7 @@ public class Controller1 {
     }
 
     private void setBoardFromScreenShot() {
-        int[][] grid = ScreenShot.takeScreenShot(false, BACKGROUND, IMMOVABLE);
+        int[][] grid = ScreenShot.takeScreenShot(false, BACKGROUND, IMMOVABLE, leftBottomCornerCords, squareSize);
         clearBoard();
         setHeight(grid.length);
         setWidth(grid[0].length);
@@ -263,6 +307,7 @@ public class Controller1 {
             }
             addColorToColorContainer(color);
         }
+        colorInSolutionLines();
         borderPane.getScene().getWindow().sizeToScene();
     }
 
