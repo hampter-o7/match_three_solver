@@ -5,6 +5,7 @@ import java.util.ArrayList;
 
 import hampter.logic.Logic;
 import hampter.logic.ScreenShot;
+import hampter.util.Swap;
 import javafx.beans.value.ChangeListener;
 import javafx.beans.value.ObservableValue;
 import javafx.collections.ObservableList;
@@ -12,6 +13,7 @@ import javafx.event.Event;
 import javafx.fxml.FXML;
 import javafx.scene.Node;
 import javafx.scene.control.ColorPicker;
+import javafx.scene.control.Label;
 import javafx.scene.control.Slider;
 import javafx.scene.image.Image;
 import javafx.scene.image.ImageView;
@@ -25,6 +27,8 @@ import javafx.scene.paint.Paint;
 import javafx.scene.shape.Line;
 import javafx.scene.shape.Rectangle;
 import javafx.scene.shape.StrokeLineCap;
+import javafx.scene.text.Font;
+import javafx.scene.text.FontWeight;
 import javafx.stage.Stage;
 
 public class Controller1 {
@@ -50,7 +54,11 @@ public class Controller1 {
     @FXML
     private ColorPicker colorPicker;
     @FXML
-    private TilePane tilePane;
+    private TilePane boardTilePane;
+    @FXML
+    private TilePane verticalLinesTilePane;
+    @FXML
+    private TilePane horizontalLinesTilePane;
 
     private int width = 0;
     private int height = 0;
@@ -114,24 +122,24 @@ public class Controller1 {
 
     private void extendOrShrinkBoard(boolean isHorizontal, int count) {
         if (isHorizontal) {
-            tilePane.setPrefColumns(width);
-            tilePane.setMaxWidth(1 + (SQUARE_SIZE + 10) * width);
-            tilePane.setMinWidth(1 + (SQUARE_SIZE + 10) * width);
+            boardTilePane.setPrefColumns(width);
+            boardTilePane.setMaxWidth(1 + (SQUARE_SIZE + 10) * width);
+            boardTilePane.setMinWidth(1 + (SQUARE_SIZE + 10) * width);
             for (int i = height; i > 0; i--) {
                 for (int j = 0; j < Math.abs(count); j++) {
                     if (count > 0) {
-                        tilePane.getChildren().add(i * (width - count), makeNewBlankRectangle());
+                        boardTilePane.getChildren().add(i * (width - count), makeNewBlankRectangle());
                     } else {
-                        tilePane.getChildren().remove((height - i + 1) * width);
+                        boardTilePane.getChildren().remove((height - i + 1) * width);
                     }
                 }
             }
         } else {
             for (int i = 0; i < Math.abs(count) * width; i++) {
                 if (count > 0) {
-                    tilePane.getChildren().add(0, makeNewBlankRectangle());
+                    boardTilePane.getChildren().add(0, makeNewBlankRectangle());
                 } else {
-                    tilePane.getChildren().removeFirst();
+                    boardTilePane.getChildren().removeFirst();
                 }
             }
         }
@@ -149,7 +157,7 @@ public class Controller1 {
 
     private void setupButtons() {
         ImageView startImage = setupImage("start");
-        startImage.setOnMouseClicked((event) -> Logic.solveBoard(getBoard()));
+        startImage.setOnMouseClicked((event) -> colorInSolutionLines());
 
         ImageView restartImage = setupImage("restart");
         restartImage.setOnMouseClicked((event) -> resetBoard());
@@ -158,6 +166,30 @@ public class Controller1 {
         screenshotImage.setOnMouseClicked((event) -> setBoardFromScreenShot());
 
         buttonsContainer.getChildren().addAll(startImage, restartImage, screenshotImage);
+    }
+
+    private void colorInSolutionLines() {
+        verticalLinesTilePane.setDisable(false);
+        horizontalLinesTilePane.setDisable(false);
+        ArrayList<Swap> swaps = Logic.solveBoard(getBoard());
+        System.out.println(swaps);
+        for (Swap swap : swaps) {
+            if (swap.isDown()) {
+                StackPane stackPane = (StackPane) verticalLinesTilePane.getChildren()
+                        .get(swap.getX() * width + swap.getY());
+                ((Rectangle) stackPane.getChildren().get(1)).setFill(Color.RED);
+                Label label = new Label(Integer.toString(swaps.indexOf(swap) + 1));
+                label.setFont(Font.font("System", FontWeight.BOLD, 18));
+                stackPane.getChildren().add(label);
+            } else {
+                StackPane stackPane = (StackPane) horizontalLinesTilePane.getChildren()
+                        .get(swap.getX() * (width - 1) + swap.getY());
+                ((Rectangle) stackPane.getChildren().get(1)).setFill(Color.RED);
+                Label label = new Label(Integer.toString(swaps.indexOf(swap) + 1));
+                label.setFont(Font.font("System", FontWeight.BOLD, 18));
+                stackPane.getChildren().add(label);
+            }
+        }
     }
 
     private ImageView setupImage(String fileName) {
@@ -176,7 +208,7 @@ public class Controller1 {
         colors.add(IMMOVABLE_COLOR);
         colors.add(BACKGROUND_COLOR);
         int i = 0;
-        for (Node rectangle : tilePane.getChildren()) {
+        for (Node rectangle : boardTilePane.getChildren()) {
             Paint color = ((Rectangle) rectangle).getFill();
             int number = colors.indexOf(color);
             if (number == -1) {
@@ -193,7 +225,9 @@ public class Controller1 {
         resetColorContainer();
         setHeight(3);
         setWidth(3);
-        for (Node rectangle : tilePane.getChildren()) {
+        verticalLinesTilePane.setDisable(true);
+        horizontalLinesTilePane.setDisable(true);
+        for (Node rectangle : boardTilePane.getChildren()) {
             ((Rectangle) rectangle).setFill(BACKGROUND_COLOR);
         }
     }
@@ -205,12 +239,13 @@ public class Controller1 {
     }
 
     private void setBoardFromScreenShot() {
-        int[][] grid = ScreenShot.takeScreenShot(true, BACKGROUND, IMMOVABLE);
+        int[][] grid = ScreenShot.takeScreenShot(false, BACKGROUND, IMMOVABLE);
         clearBoard();
         setHeight(grid.length);
         setWidth(grid[0].length);
+        setupLines();
         ArrayList<Color> colors = new ArrayList<>();
-        ObservableList<Node> list = tilePane.getChildren();
+        ObservableList<Node> list = boardTilePane.getChildren();
         for (int i = 0; i < height; i++) {
             for (int j = 0; j < width; j++) {
                 int rgb = grid[i][j];
@@ -266,7 +301,7 @@ public class Controller1 {
     }
 
     private void clearBoard() {
-        for (Node rectangle : tilePane.getChildren()) {
+        for (Node rectangle : boardTilePane.getChildren()) {
             ((Rectangle) rectangle).setFill(BACKGROUND_COLOR);
         }
     }
@@ -277,5 +312,37 @@ public class Controller1 {
 
     private void setHeight(int height) {
         sliderV.setValue(sliderMaxSize - height);
+    }
+
+    private void setupLines() {
+        verticalLinesTilePane.getChildren().clear();
+        verticalLinesTilePane.setPrefColumns(width);
+        verticalLinesTilePane.setMaxWidth(1 + (SQUARE_SIZE + 10) * width);
+        verticalLinesTilePane.setMinWidth(1 + (SQUARE_SIZE + 10) * width);
+        verticalLinesTilePane.setDisable(true);
+        for (int i = 0; i < (height - 1) * width; i++) {
+            verticalLinesTilePane.getChildren().add(makeNewBlankLine(false));
+        }
+        horizontalLinesTilePane.getChildren().clear();
+        horizontalLinesTilePane.setPrefColumns(width - 1);
+        horizontalLinesTilePane.setMaxWidth(1 + (SQUARE_SIZE + 10) * (width - 1));
+        horizontalLinesTilePane.setMinWidth(1 + (SQUARE_SIZE + 10) * (width - 1));
+        horizontalLinesTilePane.setDisable(true);
+        for (int i = 0; i < (width - 1) * height; i++) {
+            horizontalLinesTilePane.getChildren().add(makeNewBlankLine(true));
+        }
+    }
+
+    private StackPane makeNewBlankLine(boolean isHorizontal) {
+        StackPane stackPane = new StackPane();
+        Rectangle rectangle = new Rectangle(SQUARE_SIZE, SQUARE_SIZE, Color.TRANSPARENT);
+        rectangle.setStroke(Color.TRANSPARENT);
+        rectangle.setStrokeWidth(3);
+        Rectangle line = new Rectangle(SQUARE_SIZE / (isHorizontal ? 1 : 5), SQUARE_SIZE / (isHorizontal ? 5 : 1),
+                Color.TRANSPARENT);
+        line.setArcHeight(10);
+        line.setArcWidth(10);
+        stackPane.getChildren().addAll(rectangle, line);
+        return stackPane;
     }
 }

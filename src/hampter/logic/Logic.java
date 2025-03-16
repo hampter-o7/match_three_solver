@@ -10,10 +10,10 @@ public class Logic {
     private static final int IMMOVABLE_BLOCK = -1;
     private static final int EMPTY_SPACE = 0;
 
-    public static void solveBoard(int[][] board) {
+    public static ArrayList<Swap> solveBoard(int[][] board) {
         ArrayList<Swap> bestSolution = new ArrayList<>();
         getSolution(bestSolution, new ArrayList<>(), board, new ArrayList<>());
-        System.out.println(bestSolution);
+        return bestSolution;
     }
 
     private static void getSolution(ArrayList<Swap> bestSolution, ArrayList<Swap> solutionSwaps,

@@ -37,10 +37,22 @@
       </VBox>
    </right>
    <center>
-      <TilePane fx:id="tilePane" alignment="CENTER" hgap="5.0" vgap="5.0" BorderPane.alignment="CENTER">
-         <padding>
-            <Insets bottom="5.0" left="5.0" right="5.0" top="5.0" />
-         </padding>
-      </TilePane>
+      <StackPane BorderPane.alignment="CENTER">
+         <children>
+            <TilePane fx:id="boardTilePane" alignment="CENTER" hgap="5.0" vgap="5.0">
+               <padding>
+                  <Insets bottom="5.0" left="5.0" right="5.0" top="5.0" />
+               </padding>
+            </TilePane>
+            <TilePane fx:id="verticalLinesTilePane" alignment="CENTER" hgap="5.0" vgap="5.0">
+               <padding>
+                  <Insets bottom="5.0" left="5.0" right="5.0" top="5.0" />
+               </padding></TilePane>
+            <TilePane fx:id="horizontalLinesTilePane" alignment="CENTER" hgap="5.0" vgap="5.0">
+               <padding>
+                  <Insets bottom="5.0" left="5.0" right="5.0" top="5.0" />
+               </padding></TilePane>
+         </children>
+      </StackPane>
    </center>
 </BorderPane>
