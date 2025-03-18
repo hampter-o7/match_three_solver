@@ -1,4 +1,4 @@
-package hampter.util;
+package hampter.java.util;
 
 public class Swap {
 

@@ -1,13 +1,13 @@
-package hampter.controller;
+package hampter.java.controller;
 
 import java.awt.MouseInfo;
 import java.awt.Point;
 import java.io.FileNotFoundException;
 import java.util.ArrayList;
 
-import hampter.logic.Logic;
-import hampter.logic.ScreenShot;
-import hampter.util.Swap;
+import hampter.java.logic.Logic;
+import hampter.java.logic.ScreenShot;
+import hampter.java.util.Swap;
 import javafx.animation.KeyFrame;
 import javafx.animation.Timeline;
 import javafx.beans.value.ChangeListener;
@@ -238,7 +238,8 @@ public class Controller1 {
 
     private ImageView setupImage(String fileName) {
         ImageView image = new ImageView(
-                new Image(getClass().getResource("../images/" + fileName + ".png").toExternalForm(), false));
+                new Image(getClass().getResource("/hampter/resources/images/" + fileName + ".png").toExternalForm(),
+                        false));
         image.setPreserveRatio(true);
         image.setFitHeight(SQUARE_SIZE);
         image.setFitWidth(SQUARE_SIZE);

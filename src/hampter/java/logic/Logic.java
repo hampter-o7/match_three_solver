@@ -1,9 +1,9 @@
-package hampter.logic;
+package hampter.java.logic;
 
 import java.util.ArrayList;
 import java.util.Scanner;
 
-import hampter.util.Swap;
+import hampter.java.util.Swap;
 
 public class Logic {
 

@@ -1,4 +1,4 @@
-package hampter.logic;
+package hampter.java.logic;
 
 import java.awt.image.BufferedImage;
 import java.io.File;

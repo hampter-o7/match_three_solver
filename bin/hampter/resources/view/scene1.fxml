@@ -9,7 +9,7 @@
 <?import javafx.scene.layout.TilePane?>
 <?import javafx.scene.layout.VBox?>
 
-<BorderPane fx:id="borderPane" style="-fx-background-color: #555555;" xmlns="http://javafx.com/javafx/21" xmlns:fx="http://javafx.com/fxml/1" fx:controller="hampter.controller.Controller1">
+<BorderPane fx:id="borderPane" style="-fx-background-color: #555555;" xmlns="http://javafx.com/javafx/21" xmlns:fx="http://javafx.com/fxml/1" fx:controller="hampter.java.controller.Controller1">
    <top>
       <Slider fx:id="sliderH" BorderPane.alignment="CENTER" />
    </top>
