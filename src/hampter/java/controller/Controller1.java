@@ -1,24 +1,26 @@
 package hampter.java.controller;
 
-import java.awt.MouseInfo;
-import java.awt.Point;
 import java.io.FileNotFoundException;
 import java.util.ArrayList;
+import java.util.concurrent.atomic.AtomicInteger;
 
 import hampter.java.logic.Logic;
 import hampter.java.logic.ScreenShot;
 import hampter.java.util.Swap;
 import javafx.animation.KeyFrame;
 import javafx.animation.Timeline;
+import javafx.application.Platform;
 import javafx.beans.value.ChangeListener;
 import javafx.beans.value.ObservableValue;
 import javafx.collections.ObservableList;
 import javafx.event.Event;
 import javafx.fxml.FXML;
 import javafx.scene.Node;
+import javafx.scene.control.CheckBox;
 import javafx.scene.control.ColorPicker;
 import javafx.scene.control.Label;
 import javafx.scene.control.Slider;
+import javafx.scene.effect.ColorAdjust;
 import javafx.scene.image.Image;
 import javafx.scene.image.ImageView;
 import javafx.scene.input.MouseButton;
@@ -71,8 +73,9 @@ public class Controller1 {
     private int height = 0;
     private int sliderMaxSize = 25;
     private Paint selectedColor = null;
-    private int[] squareSize = { -1 };
+    private AtomicInteger squareSize = new AtomicInteger(-1);
     private int[] leftBottomCornerCords = new int[2];
+    private boolean isTest = false;
 
     public void initialize() throws FileNotFoundException {
         setupSliders();
@@ -96,6 +99,8 @@ public class Controller1 {
                 return;
             }
             if (selectedColor != null) {
+                verticalLinesTilePane.setVisible(false);
+                horizontalLinesTilePane.setVisible(false);
                 rectangle.setFill(selectedColor);
             }
         } else if (event.getTarget() instanceof Line) {
@@ -165,6 +170,9 @@ public class Controller1 {
     }
 
     private void setupButtons() {
+        CheckBox autoSolve = new CheckBox("Auto solve");
+        autoSolve.setStyle("-fx-font-size: 16px; -fx-text-fill: black;");
+
         ImageView startImage = setupImage("start");
         startImage.setOnMouseClicked((event) -> colorInSolutionLines());
 
@@ -172,48 +180,56 @@ public class Controller1 {
         restartImage.setOnMouseClicked((event) -> resetBoard());
 
         ImageView screenshotImage = setupImage("screenshot");
-        screenshotImage.setOnMouseClicked((event) -> setBoardFromScreenShot());
+        screenshotImage.setOnMouseClicked((event) -> {
+            buttonsContainer.setDisable(true);
+            setBoardFromScreenShot();
+        });
 
-        buttonsContainer.getChildren().addAll(startImage, restartImage, screenshotImage);
+        buttonsContainer.getChildren().addAll(autoSolve, startImage, restartImage, screenshotImage);
     }
 
     private void colorInSolutionLines() {
-        ArrayList<Swap> swaps = Logic.solveBoard(getBoard());
-        if (swaps.size() == 0) {
-            return;
-        }
-        verticalLinesTilePane.setDisable(false);
-        horizontalLinesTilePane.setDisable(false);
-        for (Swap swap : swaps) {
-            if (swap.isDown()) {
-                StackPane stackPane = (StackPane) verticalLinesTilePane.getChildren()
-                        .get(swap.getX() * width + swap.getY());
-                ((Rectangle) stackPane.getChildren().get(1)).setFill(Color.RED);
-                Label label = new Label(Integer.toString(swaps.indexOf(swap) + 1));
-                label.setFont(Font.font("System", FontWeight.BOLD, 18));
-                stackPane.getChildren().add(label);
-            } else {
-                StackPane stackPane = (StackPane) horizontalLinesTilePane.getChildren()
-                        .get(swap.getX() * (width - 1) + swap.getY());
-                ((Rectangle) stackPane.getChildren().get(1)).setFill(Color.RED);
-                Label label = new Label(Integer.toString(swaps.indexOf(swap) + 1));
-                label.setFont(Font.font("System", FontWeight.BOLD, 18));
-                stackPane.getChildren().add(label);
+        buttonsContainer.setDisable(true);
+        new Thread(() -> {
+            ArrayList<Swap> swaps = Logic.solveBoard(getBoard());
+            buttonsContainer.setDisable(false);
+            if (swaps.isEmpty()) {
+                return;
             }
-        }
-        performAllMouseClicks(swaps);
+            verticalLinesTilePane.setVisible(true);
+            horizontalLinesTilePane.setVisible(true);
+            Platform.runLater(() -> {
+                for (Swap swap : swaps) {
+                    if (swap.isDown()) {
+                        StackPane stackPane = (StackPane) verticalLinesTilePane.getChildren()
+                                .get(swap.getX() * width + swap.getY());
+                        ((Rectangle) stackPane.getChildren().get(1)).setFill(Color.RED);
+                        ((Label) stackPane.getChildren().get(2)).setText(Integer.toString(swaps.indexOf(swap) + 1));
+                    } else {
+                        StackPane stackPane = (StackPane) horizontalLinesTilePane.getChildren()
+                                .get(swap.getX() * (width - 1) + swap.getY());
+                        ((Rectangle) stackPane.getChildren().get(1)).setFill(Color.RED);
+                        ((Label) stackPane.getChildren().get(2)).setText(Integer.toString(swaps.indexOf(swap) + 1));
+                    }
+                }
+                if (!isTest && leftBottomCornerCords[0] != 0 &&
+                        ((CheckBox) buttonsContainer.getChildren().get(0)).isSelected()) {
+                    performAllMouseClicks(swaps);
+                }
+            });
+        }).start();
     }
 
     private void performAllMouseClicks(ArrayList<Swap> swaps) {
-        Point originalMousePos = MouseInfo.getPointerInfo().getLocation();
+        ((Stage) borderPane.getScene().getWindow()).setIconified(true);
         Timeline timeline = new Timeline();
         int delay = 100;
         for (Swap swap : swaps) {
-            int x1 = leftBottomCornerCords[0] + squareSize[0] / 2 + swap.getY() * squareSize[0];
-            int y1 = leftBottomCornerCords[1] - squareSize[0] / 2 - (height - 1 - swap.getX()) * squareSize[0];
+            int x1 = leftBottomCornerCords[0] + squareSize.get() / 2 + swap.getY() * squareSize.get();
+            int y1 = leftBottomCornerCords[1] - squareSize.get() / 2 - (height - 1 - swap.getX()) * squareSize.get();
 
-            int x2 = x1 + (swap.isDown() ? 0 : squareSize[0]);
-            int y2 = y1 + (swap.isDown() ? squareSize[0] : 0);
+            int x2 = x1 + (swap.isDown() ? 0 : squareSize.get());
+            int y2 = y1 + (swap.isDown() ? squareSize.get() : 0);
 
             timeline.getKeyFrames().add(new KeyFrame(Duration.millis(delay), e -> clickMouse(x1, y1)));
             delay += 100;
@@ -221,12 +237,9 @@ public class Controller1 {
             timeline.getKeyFrames().add(new KeyFrame(Duration.millis(delay), e -> clickMouse(x2, y2)));
             delay += 1200;
         }
-
         timeline.getKeyFrames().add(new KeyFrame(Duration.millis(delay), e -> {
-            Robot robot = new Robot();
-            robot.mouseMove(originalMousePos.x, originalMousePos.y);
+            ((Stage) borderPane.getScene().getWindow()).setIconified(false);
         }));
-
         timeline.play();
     }
 
@@ -244,6 +257,12 @@ public class Controller1 {
         image.setFitHeight(SQUARE_SIZE);
         image.setFitWidth(SQUARE_SIZE);
         image.setPickOnBounds(true);
+        ColorAdjust grayEffect = new ColorAdjust();
+        grayEffect.setSaturation(-1);
+        grayEffect.setBrightness(0.3);
+        image.disabledProperty().addListener((obs, wasDisabled, isNowDisabled) -> {
+            image.setEffect(isNowDisabled ? grayEffect : null);
+        });
         return image;
     }
 
@@ -270,8 +289,7 @@ public class Controller1 {
         resetColorContainer();
         setHeight(3);
         setWidth(3);
-        verticalLinesTilePane.setDisable(true);
-        horizontalLinesTilePane.setDisable(true);
+        setupLines();
         for (Node rectangle : boardTilePane.getChildren()) {
             ((Rectangle) rectangle).setFill(BACKGROUND_COLOR);
         }
@@ -284,32 +302,37 @@ public class Controller1 {
     }
 
     private void setBoardFromScreenShot() {
-        int[][] grid = ScreenShot.takeScreenShot(false, BACKGROUND, IMMOVABLE, leftBottomCornerCords, squareSize);
-        clearBoard();
-        setHeight(grid.length);
-        setWidth(grid[0].length);
-        setupLines();
-        ArrayList<Color> colors = new ArrayList<>();
-        ObservableList<Node> list = boardTilePane.getChildren();
-        for (int i = 0; i < height; i++) {
-            for (int j = 0; j < width; j++) {
-                int rgb = grid[i][j];
-                Color color = Color.web(String.format("0x%06X", rgb));
-                if (!colors.contains(color)) {
-                    colors.add(color);
+        new Thread(() -> {
+            Platform.runLater(() -> {
+                int[][] grid = ScreenShot.takeScreenShot(isTest, (Stage) borderPane.getScene().getWindow(), BACKGROUND,
+                        IMMOVABLE, leftBottomCornerCords, squareSize);
+                clearBoard();
+                setHeight(grid.length);
+                setWidth(grid[0].length);
+                setupLines();
+                ArrayList<Color> colors = new ArrayList<>();
+                ObservableList<Node> list = boardTilePane.getChildren();
+                for (int i = 0; i < height; i++) {
+                    for (int j = 0; j < width; j++) {
+                        int rgb = grid[i][j];
+                        Color color = Color.web(String.format("0x%06X", rgb));
+                        if (!colors.contains(color)) {
+                            colors.add(color);
+                        }
+                        ((Rectangle) (list.get(i * width + j))).setFill(color);
+                    }
                 }
-                ((Rectangle) (list.get(i * width + j))).setFill(color);
-            }
-        }
-        resetColorContainer();
-        for (Color color : colors) {
-            if (color.equals(BACKGROUND_COLOR) || color.equals(IMMOVABLE_COLOR)) {
-                continue;
-            }
-            addColorToColorContainer(color);
-        }
-        colorInSolutionLines();
-        borderPane.getScene().getWindow().sizeToScene();
+                resetColorContainer();
+                for (Color color : colors) {
+                    if (color.equals(BACKGROUND_COLOR) || color.equals(IMMOVABLE_COLOR)) {
+                        continue;
+                    }
+                    addColorToColorContainer(color);
+                }
+                colorInSolutionLines();
+                borderPane.getScene().getWindow().sizeToScene();
+            });
+        }).start();
     }
 
     private void setupColors() {
@@ -388,7 +411,11 @@ public class Controller1 {
                 Color.TRANSPARENT);
         line.setArcHeight(10);
         line.setArcWidth(10);
-        stackPane.getChildren().addAll(rectangle, line);
+        Label label = new Label();
+        label.disableProperty().bind(stackPane.disableProperty().not());
+        label.setOpacity(1);
+        label.setFont(Font.font("System", FontWeight.BOLD, 16));
+        stackPane.getChildren().addAll(rectangle, line, label);
         return stackPane;
     }
 }

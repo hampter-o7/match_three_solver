@@ -11,8 +11,15 @@ public class Logic {
     private static final int EMPTY_SPACE = 0;
 
     public static ArrayList<Swap> solveBoard(int[][] board) {
+        long startTime = System.nanoTime();
+
         ArrayList<Swap> bestSolution = new ArrayList<>();
-        getSolution(bestSolution, new ArrayList<>(), board, new ArrayList<>());
+        ArrayList<int[][]> memo = new ArrayList<>();
+        getSolution(bestSolution, new ArrayList<>(), board, memo);
+
+        long endTime = System.nanoTime();
+        System.out.println("Execution time of solving: " + ((endTime - startTime) / 1_000_000) + " ms");
+
         return bestSolution;
     }
 
@@ -137,14 +144,15 @@ public class Logic {
                 if (board[i][j] == EMPTY_SPACE || board[i][j] == IMMOVABLE_BLOCK) {
                     continue;
                 }
-                if (i + 1 != board.length && board[i + 1][j] != IMMOVABLE_BLOCK) {
+                if (i + 1 != board.length && board[i + 1][j] != IMMOVABLE_BLOCK && board[i][j] != board[i + 1][j]) {
                     swapNumbers(i, j, true, board);
                     if (checkIfAtLeastThreeInRow(board)) {
                         possibleSwaps.add(new Swap(i, j, true));
                     }
                     swapNumbers(i, j, true, board);
                 }
-                if (j + 1 != board[i].length && board[i][j + 1] != EMPTY_SPACE && board[i][j + 1] != IMMOVABLE_BLOCK) {
+                if (j + 1 != board[i].length && board[i][j + 1] != EMPTY_SPACE && board[i][j + 1] != IMMOVABLE_BLOCK
+                        && board[i][j] != board[i][j + 1]) {
                     swapNumbers(i, j, false, board);
                     if (checkIfAtLeastThreeInRow(board)) {
                         possibleSwaps.add(new Swap(i, j, false));

@@ -5,14 +5,19 @@ import java.io.File;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Random;
+import java.util.Stack;
+import java.util.concurrent.atomic.AtomicInteger;
 
 import javax.imageio.ImageIO;
 
 import imageLineExtractor.LineCalculator;
+import imageLineExtractor.SaveImage;
 import javafx.embed.swing.SwingFXUtils;
 import javafx.geometry.Rectangle2D;
 import javafx.scene.image.WritableImage;
 import javafx.scene.robot.Robot;
+import javafx.stage.Stage;
 
 public class ScreenShot {
 
@@ -23,38 +28,60 @@ public class ScreenShot {
 
     private static int backgroundColor = 0;
     private static int immovableColor = 0;
+    private static int counter = 0;
 
-    public static int[][] takeScreenShot(boolean isTest, int background, int immovable, int[] leftBottomCornerCords,
-            int[] squareSize) {
+    public static int[][] takeScreenShot(boolean isTest, Stage stage, int background, int immovable,
+            int[] leftBottomCornerCords, AtomicInteger squareSize) {
+        long startTime = System.nanoTime();
         backgroundColor = background;
         immovableColor = immovable;
-        BufferedImage image = getImage(isTest);
+        BufferedImage image = getImage(isTest, stage);
         int[][] grid = fillOutGrid(image, leftBottomCornerCords, squareSize);
         grid = detectSameColors(grid);
+
+        long endTime = System.nanoTime();
+        System.out.println("Execution time of screenshot: " + ((endTime - startTime) / 1_000_000) + " ms");
         return grid;
     }
 
-    private static BufferedImage getImage(boolean isTest) {
+    private static BufferedImage getImage(boolean isTest, Stage stage) {
+        // WritableImage screenCapture = robot.getScreenCapture(null,
+        // Screen.getPrimary().getBounds());
+        // BufferedImage image = null;
+        // try {
+        // image = ImageIO.read(new File("inputs/1600x900res.png"));
+        // } catch (IOException e) {
+        // e.printStackTrace();
+        // }
+        // BufferedImage grayscale = GrayScale.applyGrayScale(image, GrayScale.AVERAGE,
+        // true);
+        // BufferedImage thresholdGradientImage =
+        // EdgeDetection.getThresholdGradient(grayscale, EdgeDetection.SOBEL,
+        // EdgeDetection.PRESET_ALPHA, EdgeDetection.PRESET_BETA, true);
+        // contour(dilate(thresholdGradientImage));
+
         if (isTest) {
             try {
-                return ImageIO.read(new File("input1.png"));
+                return ImageIO.read(new File("inputs/input2.png"));
             } catch (IOException e) {
                 e.printStackTrace();
             }
         } else {
+            stage.setOpacity(0);
             Robot robot = new Robot();
             WritableImage screenCapture = robot.getScreenCapture(null,
                     new Rectangle2D(LEFT_UPPER_SCREENSHOT_X, LEFT_UPPER_SCREENSHOT_Y, SCREENSHOT_WIDTH,
                             SCREENSHOT_HEIGHT));
+            stage.setOpacity(1);
             return SwingFXUtils.fromFXImage(screenCapture, null);
         }
         return null;
     }
 
-    private static int[][] fillOutGrid(BufferedImage image, int[] leftBottomCornerCords, int[] squareSize) {
+    private static int[][] fillOutGrid(BufferedImage image, int[] leftBottomCornerCords, AtomicInteger squareSize) {
         int[][] lines = LineCalculator.calculateLines(image, 1, false);
-        squareSize[0] = LineCalculator.getSquareSize(lines);
-        int[][] grid = new int[(int) image.getHeight() / squareSize[0]][(int) image.getWidth() / squareSize[0]];
+        squareSize.set(LineCalculator.getSquareSize(lines));
+        int[][] grid = new int[(int) image.getHeight() / squareSize.get()][(int) image.getWidth() / squareSize.get()];
         for (int i = 0; i < grid.length; i++) {
             Arrays.fill(grid[i], backgroundColor);
         }
@@ -62,12 +89,12 @@ public class ScreenShot {
         int vertical = lines[1][0];
         leftBottomCornerCords[0] = LEFT_UPPER_SCREENSHOT_X + vertical;
         leftBottomCornerCords[1] = LEFT_UPPER_SCREENSHOT_Y + horizontal;
-        int startJ = -vertical / squareSize[0];
-        for (int i = 1; horizontal - i * squareSize[0] > 0; i++) {
-            int y = horizontal - i * squareSize[0];
-            for (int j = startJ; vertical + (j + 1) * squareSize[0] < image.getWidth(); j++) {
-                int x = vertical + j * squareSize[0];
-                grid[grid.length - i][j - startJ] = calculateAverageColor(image, x, y, squareSize[0]);
+        int startJ = -vertical / squareSize.get();
+        for (int i = 1; horizontal - i * squareSize.get() > 0; i++) {
+            int y = horizontal - i * squareSize.get();
+            for (int j = startJ; vertical + (j + 1) * squareSize.get() < image.getWidth(); j++) {
+                int x = vertical + j * squareSize.get();
+                grid[grid.length - i][j - startJ] = calculateAverageColor(image, x, y, squareSize.get());
             }
         }
         grid = cleanupGrid(grid);
@@ -278,6 +305,89 @@ public class ScreenShot {
                         (RT * (deltaCPrime / (KC * SC)) * (deltaHPrime / (KH * SH))));
 
         return deltaE;
+    }
+
+    private static void contour(BufferedImage image) {
+        boolean[][] isContoured = new boolean[image.getHeight()][image.getWidth()];
+        BufferedImage contourImage = new BufferedImage(image.getWidth(), image.getHeight(),
+                BufferedImage.TYPE_INT_RGB);
+        for (int i = 0; i < image.getHeight(); i++) {
+            for (int j = 0; j < image.getWidth(); j++) {
+                if ((image.getRGB(j, i) & 1) == 0)
+                    isContoured[i][j] = true;
+            }
+        }
+        for (int i = 0; i < image.getHeight(); i++) {
+            for (int j = 0; j < image.getWidth(); j++) {
+                if (isContoured[i][j]) {
+                    continue;
+                }
+                counter = 0;
+                ArrayList<int[]> contour = new ArrayList<int[]>();
+                findAllAdjacentPixels(image, i, j, isContoured, contour);
+                System.out.println(counter);
+                if (counter < 5000) {
+                    continue;
+                }
+                Random random = new Random();
+                int rgb = random.nextInt(0xFFFFFF);
+                for (int[] pixel : contour) {
+                    contourImage.setRGB(pixel[1], pixel[0], rgb);
+                }
+            }
+        }
+        SaveImage.saveImage(contourImage, "contour", true);
+    }
+
+    private static void findAllAdjacentPixels(BufferedImage image, int startX, int startY, boolean[][] isContoured,
+            ArrayList<int[]> contour) {
+        int maxDistanceIncluded = 4;
+        Stack<int[]> stack = new Stack<>();
+        stack.push(new int[] { startX, startY });
+
+        while (!stack.isEmpty()) {
+            int[] current = stack.pop();
+            int x = current[0];
+            int y = current[1];
+
+            if (isContoured[x][y])
+                continue;
+            counter++;
+            isContoured[x][y] = true;
+            contour.add(new int[] { x, y });
+
+            int a = Math.max(x - maxDistanceIncluded, 0);
+            int b = Math.max(y - maxDistanceIncluded, 0);
+            int c = Math.min(x + maxDistanceIncluded, image.getHeight() - 1);
+            int d = Math.min(y + maxDistanceIncluded, image.getWidth() - 1);
+
+            for (int i = a; i <= c; i++) {
+                for (int j = b; j <= d; j++) {
+                    if (!isContoured[i][j]) {
+                        stack.push(new int[] { i, j });
+                    }
+                }
+            }
+        }
+    }
+
+    private static BufferedImage dilate(BufferedImage image) {
+        BufferedImage dilate = new BufferedImage(image.getWidth(), image.getHeight(),
+                BufferedImage.TYPE_BYTE_GRAY);
+        for (int i = 1; i < image.getHeight() - 1; i++) {
+            outer: for (int j = 1; j < image.getWidth() - 1; j++) {
+                for (int offset1 = -1; offset1 <= 1; offset1++) {
+                    for (int offset2 = -1; offset2 <= 1; offset2++) {
+                        if (image.getRGB(j + offset2, i + offset1) == 0xFFFFFFFF) {
+                            dilate.setRGB(j, i, 0xFFFFFFFF);
+                            continue outer;
+                        }
+                    }
+                }
+            }
+        }
+        SaveImage.saveImage(dilate, "dilated", true);
+        return dilate;
     }
 
     @SuppressWarnings(value = { "unused" })
