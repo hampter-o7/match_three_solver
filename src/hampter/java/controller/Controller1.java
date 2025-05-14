@@ -1,7 +1,11 @@
 package hampter.java.controller;
 
-import java.io.FileNotFoundException;
+import java.io.File;
+import java.io.FileWriter;
+import java.io.IOException;
+import java.nio.file.Files;
 import java.util.ArrayList;
+import java.util.List;
 import java.util.concurrent.atomic.AtomicInteger;
 
 import hampter.java.logic.Logic;
@@ -19,7 +23,9 @@ import javafx.scene.Node;
 import javafx.scene.control.CheckBox;
 import javafx.scene.control.ColorPicker;
 import javafx.scene.control.Label;
+import javafx.scene.control.RadioMenuItem;
 import javafx.scene.control.Slider;
+import javafx.scene.control.ToggleGroup;
 import javafx.scene.effect.ColorAdjust;
 import javafx.scene.image.Image;
 import javafx.scene.image.ImageView;
@@ -68,6 +74,10 @@ public class Controller1 {
     private TilePane verticalLinesTilePane;
     @FXML
     private TilePane horizontalLinesTilePane;
+    @FXML
+    private RadioMenuItem leftMenuItem;
+    @FXML
+    private RadioMenuItem rightMenuItem;
 
     private int width = 0;
     private int height = 0;
@@ -76,11 +86,14 @@ public class Controller1 {
     private AtomicInteger squareSize = new AtomicInteger(-1);
     private int[] leftBottomCornerCords = new int[2];
     private boolean isTest = false;
+    private MouseButton primaryButton = null;
+    private String fileName = "config.properties";
 
-    public void initialize() throws FileNotFoundException {
+    public void initialize() throws IOException {
         setupSliders();
         setupButtons();
         setupColors();
+        setupSettings();
     }
 
     public void setupBoard() {
@@ -172,6 +185,7 @@ public class Controller1 {
     private void setupButtons() {
         CheckBox autoSolve = new CheckBox("Auto solve");
         autoSolve.setStyle("-fx-font-size: 16px; -fx-text-fill: black;");
+        autoSolve.setOnAction(e -> writeConfigFile("autosolve", autoSolve.isSelected() ? "true" : "false"));
 
         ImageView startImage = setupImage("start");
         startImage.setOnMouseClicked((event) -> colorInSolutionLines());
@@ -246,7 +260,7 @@ public class Controller1 {
     private void clickMouse(int x, int y) {
         Robot robot = new Robot();
         robot.mouseMove(x, y);
-        robot.mouseClick(MouseButton.SECONDARY);
+        robot.mouseClick(primaryButton);
     }
 
     private ImageView setupImage(String fileName) {
@@ -417,5 +431,75 @@ public class Controller1 {
         label.setFont(Font.font("System", FontWeight.BOLD, 16));
         stackPane.getChildren().addAll(rectangle, line, label);
         return stackPane;
+    }
+
+    private void setupSettings() throws IOException {
+        ToggleGroup group = new ToggleGroup();
+        group.selectedToggleProperty().addListener((observable, oldValue, newValue) -> {
+            primaryButton = ((RadioMenuItem) newValue).getText().toLowerCase().equals("left") ? MouseButton.PRIMARY
+                    : MouseButton.SECONDARY;
+            writeConfigFile("primary", ((RadioMenuItem) newValue).getText().toLowerCase());
+        });
+        leftMenuItem.setToggleGroup(group);
+        rightMenuItem.setToggleGroup(group);
+
+        File file = new File(fileName);
+        if (file.createNewFile()) {
+            createConfigFile(file);
+        }
+        readConfigFile(file);
+    }
+
+    private void createConfigFile(File file) throws IOException {
+        FileWriter writer = new FileWriter(file, true);
+        writer.write("primary-left\nautoSolve-true");
+        writer.close();
+    }
+
+    private void readConfigFile(File file) throws IOException {
+        for (String line : Files.readAllLines(file.toPath())) {
+            line = line.toLowerCase();
+            if (line.startsWith("primary")) {
+                switch (line.split("-")[1]) {
+                    case "left":
+                        primaryButton = MouseButton.PRIMARY;
+                        leftMenuItem.setSelected(true);
+                        break;
+                    case "right":
+                        primaryButton = MouseButton.SECONDARY;
+                        rightMenuItem.setSelected(true);
+                        break;
+                }
+            } else if (line.startsWith("autosolve")) {
+                switch (line.split("-")[1]) {
+                    case "true":
+                        ((CheckBox) buttonsContainer.getChildren().get(0)).fire();
+                        break;
+                }
+            }
+        }
+    }
+
+    private void writeConfigFile(String setting, String updatedValue) {
+        File file = new File(fileName);
+        List<String> lines = null;
+        try {
+            lines = Files.readAllLines(file.toPath());
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
+        List<String> updatedLines = new ArrayList<>();
+        for (String line : lines) {
+            if (line.toLowerCase().startsWith(setting.toLowerCase())) {
+                updatedLines.add(setting + "-" + updatedValue);
+            } else {
+                updatedLines.add(line);
+            }
+        }
+        try {
+            Files.write(file.toPath(), updatedLines);
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
     }
 }
