@@ -210,10 +210,10 @@ public class Controller1 {
             if (swaps.isEmpty()) {
                 return;
             }
-            setupLines();
-            verticalLinesTilePane.setVisible(true);
-            horizontalLinesTilePane.setVisible(true);
             Platform.runLater(() -> {
+                setupLines();
+                verticalLinesTilePane.setVisible(true);
+                horizontalLinesTilePane.setVisible(true);
                 for (Swap swap : swaps) {
                     if (swap.isDown()) {
                         StackPane stackPane = (StackPane) verticalLinesTilePane.getChildren()
@@ -304,6 +304,8 @@ public class Controller1 {
         resetColorContainer();
         setHeight(3);
         setWidth(3);
+        verticalLinesTilePane.setVisible(false);
+        horizontalLinesTilePane.setVisible(false);
         for (Node rectangle : boardTilePane.getChildren()) {
             ((Rectangle) rectangle).setFill(BACKGROUND_COLOR);
         }

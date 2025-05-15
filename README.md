@@ -20,7 +20,7 @@ To run the program:
 
 ### Interface Features
 
-- The two sliders adjust the width and height of the puzzle.
+- The two sliders adjust the width and height of the puzzle. You can also adjust the size by hovering sliders and using scroll wheel.
 - The grid in the middle represents the puzzle to be solved.
 - The first two "colors" at the bottom of the GUI are:
   - **Black**: for immovable blocks
