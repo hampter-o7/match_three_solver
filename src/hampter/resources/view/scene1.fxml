@@ -64,11 +64,11 @@
                   <Insets bottom="5.0" left="5.0" right="5.0" top="5.0" />
                </padding>
             </TilePane>
-            <TilePane fx:id="verticalLinesTilePane" alignment="CENTER" hgap="5.0" vgap="5.0">
+            <TilePane fx:id="verticalLinesTilePane" alignment="CENTER" hgap="5.0" mouseTransparent="true" vgap="5.0" visible="false">
                <padding>
                   <Insets bottom="5.0" left="5.0" right="5.0" top="5.0" />
                </padding></TilePane>
-            <TilePane fx:id="horizontalLinesTilePane" alignment="CENTER" hgap="5.0" vgap="5.0">
+            <TilePane fx:id="horizontalLinesTilePane" alignment="CENTER" hgap="5.0" mouseTransparent="true" vgap="5.0" visible="false">
                <padding>
                   <Insets bottom="5.0" left="5.0" right="5.0" top="5.0" />
                </padding></TilePane>

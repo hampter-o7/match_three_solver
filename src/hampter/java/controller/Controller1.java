@@ -210,6 +210,7 @@ public class Controller1 {
             if (swaps.isEmpty()) {
                 return;
             }
+            setupLines();
             verticalLinesTilePane.setVisible(true);
             horizontalLinesTilePane.setVisible(true);
             Platform.runLater(() -> {
@@ -303,7 +304,6 @@ public class Controller1 {
         resetColorContainer();
         setHeight(3);
         setWidth(3);
-        setupLines();
         for (Node rectangle : boardTilePane.getChildren()) {
             ((Rectangle) rectangle).setFill(BACKGROUND_COLOR);
         }
@@ -323,7 +323,6 @@ public class Controller1 {
                 clearBoard();
                 setHeight(grid.length);
                 setWidth(grid[0].length);
-                setupLines();
                 ArrayList<Color> colors = new ArrayList<>();
                 ObservableList<Node> list = boardTilePane.getChildren();
                 for (int i = 0; i < height; i++) {
@@ -402,7 +401,6 @@ public class Controller1 {
         verticalLinesTilePane.setPrefColumns(width);
         verticalLinesTilePane.setMaxWidth(1 + (SQUARE_SIZE + 10) * width);
         verticalLinesTilePane.setMinWidth(1 + (SQUARE_SIZE + 10) * width);
-        verticalLinesTilePane.setDisable(true);
         for (int i = 0; i < (height - 1) * width; i++) {
             verticalLinesTilePane.getChildren().add(makeNewBlankLine(false));
         }
@@ -410,7 +408,6 @@ public class Controller1 {
         horizontalLinesTilePane.setPrefColumns(width - 1);
         horizontalLinesTilePane.setMaxWidth(1 + (SQUARE_SIZE + 10) * (width - 1));
         horizontalLinesTilePane.setMinWidth(1 + (SQUARE_SIZE + 10) * (width - 1));
-        horizontalLinesTilePane.setDisable(true);
         for (int i = 0; i < (width - 1) * height; i++) {
             horizontalLinesTilePane.getChildren().add(makeNewBlankLine(true));
         }
