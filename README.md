@@ -12,7 +12,7 @@ The program is designed to solve match-three puzzles, primarily for speed challe
 
 To run the program:
 
-1. Download the [.zip file](https://github.com/hampter-o7/match_three_solver/releases).
+1. Download the [.zip file](https://github.com/hampter-o7/match_three_solver/releases/latest).
 2. Unzip the contents.
 3. Double-click the `runMe.bat` file to launch the application.
 
