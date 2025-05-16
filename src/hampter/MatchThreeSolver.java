@@ -2,7 +2,6 @@ package hampter;
 
 import java.io.IOException;
 
-import hampter.java.controller.Controller1;
 import javafx.application.Application;
 import javafx.fxml.FXMLLoader;
 import javafx.scene.Scene;
@@ -16,18 +15,10 @@ public class MatchThreeSolver extends Application {
 
     @Override
     public void start(Stage stage) throws IOException {
-        FXMLLoader loader = new FXMLLoader(getClass().getResource("resources/view/scene1.fxml"));
-        Scene scene = new Scene(loader.load());
+        Scene scene = new Scene(new FXMLLoader(getClass().getResource("resources/view/scene1.fxml")).load());
         stage.setTitle("Match three solver");
         stage.setAlwaysOnTop(true);
         stage.setScene(scene);
-        stage.setOnShown(windowEvent -> {
-            Controller1 controller = loader.getController();
-            controller.setupBoard();
-            scene.setOnMouseClicked(mouseEvent -> {
-                controller.handleMouseClick(mouseEvent);
-            });
-        });
         stage.show();
     }
 }

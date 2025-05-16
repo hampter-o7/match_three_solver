@@ -1,5 +1,6 @@
 package hampter.java.controller;
 
+import java.awt.image.BufferedImage;
 import java.io.File;
 import java.io.FileWriter;
 import java.io.IOException;
@@ -8,8 +9,10 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.atomic.AtomicInteger;
 
+import javax.imageio.ImageIO;
+
 import hampter.java.logic.Logic;
-import hampter.java.logic.ScreenShot;
+import hampter.java.logic.ProcessScreenshot;
 import hampter.java.util.Swap;
 import javafx.animation.KeyFrame;
 import javafx.animation.Timeline;
@@ -17,8 +20,11 @@ import javafx.application.Platform;
 import javafx.beans.value.ChangeListener;
 import javafx.beans.value.ObservableValue;
 import javafx.collections.ObservableList;
+import javafx.concurrent.Task;
+import javafx.embed.swing.SwingFXUtils;
 import javafx.event.Event;
 import javafx.fxml.FXML;
+import javafx.geometry.Rectangle2D;
 import javafx.scene.Node;
 import javafx.scene.control.CheckBox;
 import javafx.scene.control.ColorPicker;
@@ -29,6 +35,7 @@ import javafx.scene.control.ToggleGroup;
 import javafx.scene.effect.ColorAdjust;
 import javafx.scene.image.Image;
 import javafx.scene.image.ImageView;
+import javafx.scene.image.WritableImage;
 import javafx.scene.input.MouseButton;
 import javafx.scene.layout.BorderPane;
 import javafx.scene.layout.HBox;
@@ -48,6 +55,10 @@ import javafx.util.Duration;
 
 public class Controller1 {
 
+    private static final int LEFT_UPPER_SCREENSHOT_X = 538;
+    private static final int LEFT_UPPER_SCREENSHOT_Y = 119;
+    private static final int SCREENSHOT_WIDTH = 1381 - LEFT_UPPER_SCREENSHOT_X;
+    private static final int SCREENSHOT_HEIGHT = 960 - LEFT_UPPER_SCREENSHOT_Y;
     private static final int SQUARE_SIZE = 50;
     private static final int BACKGROUND = 0x555555;
     private static final Color BACKGROUND_COLOR = Color.web(String.format("0x%06X", BACKGROUND));
@@ -94,31 +105,7 @@ public class Controller1 {
         setupButtons();
         setupColors();
         setupSettings();
-    }
-
-    public void setupBoard() {
         resetBoard();
-    }
-
-    public void handleMouseClick(Event event) {
-        if (event.getTarget() instanceof Rectangle) {
-            Rectangle rectangle = (Rectangle) event.getTarget();
-            if (rectangle.getParent() instanceof StackPane) {
-                colorPicker.show();
-                return;
-            }
-            if (rectangle.getParent() instanceof HBox) {
-                selectedColor = rectangle.getFill();
-                return;
-            }
-            if (selectedColor != null) {
-                verticalLinesTilePane.setVisible(false);
-                horizontalLinesTilePane.setVisible(false);
-                rectangle.setFill(selectedColor);
-            }
-        } else if (event.getTarget() instanceof Line) {
-            colorPicker.show();
-        }
     }
 
     private void setupSliders() {
@@ -132,8 +119,8 @@ public class Controller1 {
                 extendOrShrinkBoard(true, width - oldWidth);
             }
         });
-        sliderH.setOnScroll(
-                event -> sliderH.setValue(sliderH.getValue() + (event.getDeltaY() < 0 ? 1 : -1)));
+        sliderH.setOnScroll(event -> sliderH.setValue(sliderH.getValue() + (event.getDeltaY() < 0 ? 1 : -1)));
+
         sliderV.setMax(sliderMaxSize - 1);
         sliderV.setValue(sliderMaxSize - height);
         sliderV.valueProperty().addListener(new ChangeListener<Number>() {
@@ -156,21 +143,19 @@ public class Controller1 {
                 for (int j = 0; j < Math.abs(count); j++) {
                     if (count > 0) {
                         boardTilePane.getChildren().add(i * (width - count), makeNewBlankRectangle());
-                    } else {
+                    } else
                         boardTilePane.getChildren().remove((height - i + 1) * width);
-                    }
                 }
             }
         } else {
             for (int i = 0; i < Math.abs(count) * width; i++) {
                 if (count > 0) {
                     boardTilePane.getChildren().add(0, makeNewBlankRectangle());
-                } else {
+                } else
                     boardTilePane.getChildren().removeFirst();
-                }
             }
         }
-        borderPane.getScene().getWindow().sizeToScene();
+        Platform.runLater(() -> borderPane.getScene().getWindow().sizeToScene());
     }
 
     private Rectangle makeNewBlankRectangle() {
@@ -194,22 +179,35 @@ public class Controller1 {
         restartImage.setOnMouseClicked((event) -> resetBoard());
 
         ImageView screenshotImage = setupImage("screenshot");
-        screenshotImage.setOnMouseClicked((event) -> {
-            buttonsContainer.setDisable(true);
-            setBoardFromScreenShot();
-        });
+        screenshotImage.setOnMouseClicked((event) -> setBoardFromScreenShot());
 
         buttonsContainer.getChildren().addAll(autoSolve, startImage, restartImage, screenshotImage);
+
+        Platform.runLater(
+                () -> buttonsContainer.getScene().setOnMouseClicked(mouseEvent -> handleMouseClick(mouseEvent)));
+    }
+
+    private ImageView setupImage(String fileName) {
+        ImageView image = new ImageView(
+                new Image(getClass().getResource("/hampter/resources/images/" + fileName + ".png").toExternalForm()));
+        image.setPreserveRatio(true);
+        image.setFitHeight(SQUARE_SIZE);
+        image.setFitWidth(SQUARE_SIZE);
+        image.setPickOnBounds(true);
+        image.disabledProperty()
+                .addListener((obs, oldVal, newVal) -> image.setEffect(newVal ? new ColorAdjust(-1, 0, 0.3, 0) : null));
+        return image;
     }
 
     private void colorInSolutionLines() {
         buttonsContainer.setDisable(true);
+        verticalLinesTilePane.setVisible(false);
+        horizontalLinesTilePane.setVisible(false);
         new Thread(() -> {
             ArrayList<Swap> swaps = Logic.solveBoard(getBoard());
             buttonsContainer.setDisable(false);
-            if (swaps.isEmpty()) {
+            if (swaps.isEmpty())
                 return;
-            }
             Platform.runLater(() -> {
                 setupLines();
                 verticalLinesTilePane.setVisible(true);
@@ -233,169 +231,6 @@ public class Controller1 {
                 }
             });
         }).start();
-    }
-
-    private void performAllMouseClicks(ArrayList<Swap> swaps) {
-        ((Stage) borderPane.getScene().getWindow()).setIconified(true);
-        Timeline timeline = new Timeline();
-        int delay = 100;
-        for (Swap swap : swaps) {
-            int x1 = leftBottomCornerCords[0] + squareSize.get() / 2 + swap.getY() * squareSize.get();
-            int y1 = leftBottomCornerCords[1] - squareSize.get() / 2 - (height - 1 - swap.getX()) * squareSize.get();
-
-            int x2 = x1 + (swap.isDown() ? 0 : squareSize.get());
-            int y2 = y1 + (swap.isDown() ? squareSize.get() : 0);
-
-            timeline.getKeyFrames().add(new KeyFrame(Duration.millis(delay), e -> clickMouse(x1, y1)));
-            delay += 100;
-
-            timeline.getKeyFrames().add(new KeyFrame(Duration.millis(delay), e -> clickMouse(x2, y2)));
-            delay += 1200;
-        }
-        timeline.getKeyFrames().add(new KeyFrame(Duration.millis(delay), e -> {
-            ((Stage) borderPane.getScene().getWindow()).setIconified(false);
-        }));
-        timeline.play();
-    }
-
-    private void clickMouse(int x, int y) {
-        Robot robot = new Robot();
-        robot.mouseMove(x, y);
-        robot.mouseClick(primaryButton);
-    }
-
-    private ImageView setupImage(String fileName) {
-        ImageView image = new ImageView(
-                new Image(getClass().getResource("/hampter/resources/images/" + fileName + ".png").toExternalForm(),
-                        false));
-        image.setPreserveRatio(true);
-        image.setFitHeight(SQUARE_SIZE);
-        image.setFitWidth(SQUARE_SIZE);
-        image.setPickOnBounds(true);
-        ColorAdjust grayEffect = new ColorAdjust();
-        grayEffect.setSaturation(-1);
-        grayEffect.setBrightness(0.3);
-        image.disabledProperty().addListener((obs, wasDisabled, isNowDisabled) -> {
-            image.setEffect(isNowDisabled ? grayEffect : null);
-        });
-        return image;
-    }
-
-    private int[][] getBoard() {
-        int[][] board = new int[height][width];
-        ArrayList<Paint> colors = new ArrayList<>();
-        colors.add(IMMOVABLE_COLOR);
-        colors.add(BACKGROUND_COLOR);
-        int i = 0;
-        for (Node rectangle : boardTilePane.getChildren()) {
-            Paint color = ((Rectangle) rectangle).getFill();
-            int number = colors.indexOf(color);
-            if (number == -1) {
-                colors.add(color);
-                number = colors.size() - 1;
-            }
-            board[i / width][i % width] = number - 1;
-            i++;
-        }
-        return board;
-    }
-
-    private void resetBoard() {
-        resetColorContainer();
-        setHeight(3);
-        setWidth(3);
-        verticalLinesTilePane.setVisible(false);
-        horizontalLinesTilePane.setVisible(false);
-        for (Node rectangle : boardTilePane.getChildren()) {
-            ((Rectangle) rectangle).setFill(BACKGROUND_COLOR);
-        }
-    }
-
-    private void resetColorContainer() {
-        while (colorContainer.getChildren().size() != 3) {
-            colorContainer.getChildren().remove(2);
-        }
-    }
-
-    private void setBoardFromScreenShot() {
-        new Thread(() -> {
-            Platform.runLater(() -> {
-                int[][] grid = ScreenShot.takeScreenShot(isTest, (Stage) borderPane.getScene().getWindow(), BACKGROUND,
-                        IMMOVABLE, leftBottomCornerCords, squareSize);
-                clearBoard();
-                setHeight(grid.length);
-                setWidth(grid[0].length);
-                ArrayList<Color> colors = new ArrayList<>();
-                ObservableList<Node> list = boardTilePane.getChildren();
-                for (int i = 0; i < height; i++) {
-                    for (int j = 0; j < width; j++) {
-                        int rgb = grid[i][j];
-                        Color color = Color.web(String.format("0x%06X", rgb));
-                        if (!colors.contains(color)) {
-                            colors.add(color);
-                        }
-                        ((Rectangle) (list.get(i * width + j))).setFill(color);
-                    }
-                }
-                resetColorContainer();
-                for (Color color : colors) {
-                    if (color.equals(BACKGROUND_COLOR) || color.equals(IMMOVABLE_COLOR)) {
-                        continue;
-                    }
-                    addColorToColorContainer(color);
-                }
-                colorInSolutionLines();
-                borderPane.getScene().getWindow().sizeToScene();
-            });
-        }).start();
-    }
-
-    private void setupColors() {
-        Rectangle rectangle = new Rectangle(SQUARE_SIZE, SQUARE_SIZE, BACKGROUND_COLOR);
-        rectangle.setStroke(Color.BLACK);
-        rectangle.setStrokeWidth(3);
-        rectangle.setArcHeight(10);
-        rectangle.setArcWidth(10);
-        Line plusPart1 = new Line(0, 0, 0, 30);
-        plusPart1.setStrokeWidth(5);
-        plusPart1.setStrokeLineCap(StrokeLineCap.ROUND);
-        Line plusPart2 = new Line(0, 0, 30, 0);
-        plusPart2.setStrokeWidth(5);
-        plusPart2.setStrokeLineCap(StrokeLineCap.ROUND);
-        addColor.getChildren().addAll(rectangle, plusPart1, plusPart2);
-        colorPicker.setOnAction(event -> {
-            addColorToColorContainer(colorPicker.getValue());
-            selectedColor = colorPicker.getValue();
-            Stage stage = (Stage) borderPane.getScene().getWindow();
-            stage.sizeToScene();
-        });
-
-        addColorToColorContainer(IMMOVABLE_COLOR);
-        addColorToColorContainer(BACKGROUND_COLOR);
-    }
-
-    private void addColorToColorContainer(Color color) {
-        Rectangle rectangle = new Rectangle(SQUARE_SIZE, SQUARE_SIZE, color);
-        rectangle.setStroke(Color.BLACK);
-        rectangle.setStrokeWidth(3);
-        rectangle.setArcHeight(10);
-        rectangle.setArcWidth(10);
-        colorContainer.getChildren().removeLast();
-        colorContainer.getChildren().addAll(rectangle, addColor);
-    }
-
-    private void clearBoard() {
-        for (Node rectangle : boardTilePane.getChildren()) {
-            ((Rectangle) rectangle).setFill(BACKGROUND_COLOR);
-        }
-    }
-
-    private void setWidth(int width) {
-        sliderH.setValue(width - 1);
-    }
-
-    private void setHeight(int height) {
-        sliderV.setValue(sliderMaxSize - height);
     }
 
     private void setupLines() {
@@ -432,6 +267,217 @@ public class Controller1 {
         return stackPane;
     }
 
+    private int[][] getBoard() {
+        int[][] board = new int[height][width];
+        ArrayList<Paint> colors = new ArrayList<>();
+        colors.add(IMMOVABLE_COLOR);
+        colors.add(BACKGROUND_COLOR);
+        int i = 0;
+        for (Node rectangle : boardTilePane.getChildren()) {
+            Paint color = ((Rectangle) rectangle).getFill();
+            int number = colors.indexOf(color);
+            if (number == -1) {
+                colors.add(color);
+                number = colors.size() - 1;
+            }
+            board[i / width][i % width] = number - 1;
+            i++;
+        }
+        return board;
+    }
+
+    private void performAllMouseClicks(ArrayList<Swap> swaps) {
+        ((Stage) borderPane.getScene().getWindow()).setIconified(true);
+        Timeline timeline = new Timeline();
+        int delay = 100;
+
+        for (Swap swap : swaps) {
+            int x1 = leftBottomCornerCords[0] + squareSize.get() / 2 + swap.getY() * squareSize.get();
+            int y1 = leftBottomCornerCords[1] - squareSize.get() / 2 - (height - 1 - swap.getX()) * squareSize.get();
+
+            int x2 = x1 + (swap.isDown() ? 0 : squareSize.get());
+            int y2 = y1 + (swap.isDown() ? squareSize.get() : 0);
+
+            timeline.getKeyFrames().add(new KeyFrame(Duration.millis(delay), e -> clickMouse(x1, y1)));
+            delay += 100;
+
+            timeline.getKeyFrames().add(new KeyFrame(Duration.millis(delay), e -> clickMouse(x2, y2)));
+            delay += 1200;
+        }
+
+        timeline.getKeyFrames().add(new KeyFrame(Duration.millis(delay), e -> {
+            ((Stage) borderPane.getScene().getWindow()).setIconified(false);
+        }));
+
+        timeline.play();
+    }
+
+    private void clickMouse(int x, int y) {
+        Robot robot = new Robot();
+        robot.mouseMove(x, y);
+        robot.mouseClick(primaryButton);
+    }
+
+    private void setBoardFromScreenShot() {
+        buttonsContainer.setDisable(true);
+        BufferedImage screenShot = takeScreenShot();
+        Task<int[][]> task = new Task<>() {
+            @Override
+            protected int[][] call() {
+                return ProcessScreenshot.processScreenshot(isTest, screenShot, BACKGROUND, IMMOVABLE,
+                        leftBottomCornerCords, squareSize, LEFT_UPPER_SCREENSHOT_X, LEFT_UPPER_SCREENSHOT_Y);
+            }
+        };
+
+        task.setOnSucceeded(e -> {
+            int[][] grid = task.getValue();
+            clearBoard();
+            setHeight(grid.length);
+            setWidth(grid[0].length);
+
+            ArrayList<Color> colors = new ArrayList<>();
+            ObservableList<Node> list = boardTilePane.getChildren();
+            for (int i = 0; i < height; i++) {
+                for (int j = 0; j < width; j++) {
+                    int rgb = grid[i][j];
+                    Color color = Color.web(String.format("0x%06X", rgb));
+                    if (!colors.contains(color)) {
+                        colors.add(color);
+                    }
+                    ((Rectangle) (list.get(i * width + j))).setFill(color);
+                }
+            }
+
+            resetColorContainer();
+            for (Color color : colors) {
+                if (!color.equals(BACKGROUND_COLOR) && !color.equals(IMMOVABLE_COLOR)) {
+                    addColorToColorContainer(color);
+                }
+            }
+
+            colorInSolutionLines();
+            borderPane.getScene().getWindow().sizeToScene();
+        });
+
+        Thread thread = new Thread(task);
+        thread.setDaemon(true);
+        thread.start();
+    }
+
+    private BufferedImage takeScreenShot() {
+        // WritableImage screenCapture = robot.getScreenCapture(null,
+        // Screen.getPrimary().getBounds());
+        // BufferedImage image = null;
+        // try {
+        // image = ImageIO.read(new File("inputs/1600x900res.png"));
+        // } catch (IOException e) {
+        // e.printStackTrace();
+        // }
+        // BufferedImage grayscale = GrayScale.applyGrayScale(image, GrayScale.AVERAGE,
+        // true);
+        // BufferedImage thresholdGradientImage =
+        // EdgeDetection.getThresholdGradient(grayscale, EdgeDetection.SOBEL,
+        // EdgeDetection.PRESET_ALPHA, EdgeDetection.PRESET_BETA, true);
+        // contour(dilate(thresholdGradientImage));
+
+        if (isTest) {
+            try {
+                return ImageIO.read(new File("inputs/input2.png"));
+            } catch (IOException e) {
+                e.printStackTrace();
+            }
+        } else {
+            buttonsContainer.getScene().getWindow().setOpacity(0);
+            Robot robot = new Robot();
+            WritableImage screenCapture = robot.getScreenCapture(null,
+                    new Rectangle2D(LEFT_UPPER_SCREENSHOT_X, LEFT_UPPER_SCREENSHOT_Y, SCREENSHOT_WIDTH,
+                            SCREENSHOT_HEIGHT));
+            buttonsContainer.getScene().getWindow().setOpacity(1);
+            return SwingFXUtils.fromFXImage(screenCapture, null);
+        }
+        return null;
+    }
+
+    private void clearBoard() {
+        for (Node rectangle : boardTilePane.getChildren())
+            ((Rectangle) rectangle).setFill(BACKGROUND_COLOR);
+    }
+
+    private void setWidth(int width) {
+        sliderH.setValue(width - 1);
+    }
+
+    private void setHeight(int height) {
+        sliderV.setValue(sliderMaxSize - height);
+    }
+
+    private void handleMouseClick(Event event) {
+        if (event.getTarget() instanceof Rectangle) {
+            Rectangle rectangle = (Rectangle) event.getTarget();
+            if (rectangle.getParent() instanceof StackPane) {
+                colorPicker.show();
+            } else if (rectangle.getParent() instanceof HBox) {
+                selectedColor = rectangle.getFill();
+            } else if (selectedColor != null) {
+                verticalLinesTilePane.setVisible(false);
+                horizontalLinesTilePane.setVisible(false);
+                rectangle.setFill(selectedColor);
+            }
+        } else if (event.getTarget() instanceof Line)
+            colorPicker.show();
+    }
+
+    private void resetBoard() {
+        resetColorContainer();
+        setHeight(3);
+        setWidth(3);
+        verticalLinesTilePane.setVisible(false);
+        horizontalLinesTilePane.setVisible(false);
+        for (Node rectangle : boardTilePane.getChildren()) {
+            ((Rectangle) rectangle).setFill(BACKGROUND_COLOR);
+        }
+    }
+
+    private void resetColorContainer() {
+        while (colorContainer.getChildren().size() != 3) {
+            colorContainer.getChildren().remove(2);
+        }
+    }
+
+    private void setupColors() {
+        Rectangle rectangle = new Rectangle(SQUARE_SIZE, SQUARE_SIZE, BACKGROUND_COLOR);
+        rectangle.setStroke(Color.BLACK);
+        rectangle.setStrokeWidth(3);
+        rectangle.setArcHeight(10);
+        rectangle.setArcWidth(10);
+        Line plusPart1 = new Line(0, 0, 0, 30);
+        plusPart1.setStrokeWidth(5);
+        plusPart1.setStrokeLineCap(StrokeLineCap.ROUND);
+        Line plusPart2 = new Line(0, 0, 30, 0);
+        plusPart2.setStrokeWidth(5);
+        plusPart2.setStrokeLineCap(StrokeLineCap.ROUND);
+        addColor.getChildren().addAll(rectangle, plusPart1, plusPart2);
+        colorPicker.setOnAction(event -> {
+            addColorToColorContainer(colorPicker.getValue());
+            selectedColor = colorPicker.getValue();
+            Stage stage = (Stage) borderPane.getScene().getWindow();
+            stage.sizeToScene();
+        });
+
+        addColorToColorContainer(IMMOVABLE_COLOR);
+        addColorToColorContainer(BACKGROUND_COLOR);
+    }
+
+    private void addColorToColorContainer(Color color) {
+        Rectangle rectangle = new Rectangle(SQUARE_SIZE, SQUARE_SIZE, color);
+        rectangle.setStroke(Color.BLACK);
+        rectangle.setStrokeWidth(3);
+        rectangle.setArcHeight(10);
+        rectangle.setArcWidth(10);
+        colorContainer.getChildren().removeLast();
+        colorContainer.getChildren().addAll(rectangle, addColor);
+    }
+
     private void setupSettings() throws IOException {
         ToggleGroup group = new ToggleGroup();
         group.selectedToggleProperty().addListener((observable, oldValue, newValue) -> {
@@ -443,9 +489,8 @@ public class Controller1 {
         rightMenuItem.setToggleGroup(group);
 
         File file = new File(fileName);
-        if (file.createNewFile()) {
+        if (file.createNewFile())
             createConfigFile(file);
-        }
         readConfigFile(file);
     }
 
