@@ -12,6 +12,17 @@ public class Swap {
         this.down = down;
     }
 
+    public Swap(String fromSaveFile) {
+        String[] stringSwap = fromSaveFile.split(",");
+        this.x = Integer.parseInt(stringSwap[0]);
+        this.y = Integer.parseInt(stringSwap[1]);
+        this.down = stringSwap[2].equals("1");
+    }
+
+    public String toSaveFile() {
+        return String.join(",", String.valueOf(x), String.valueOf(y), down ? "1" : "0");
+    }
+
     @Override
     public String toString() {
         return String.format("{%d, %d, %s}", x + 1, y + 1, down ? "down" : "right");

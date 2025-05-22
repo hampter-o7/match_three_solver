@@ -116,7 +116,7 @@ public class ProcessScreenshot {
                     grid[j][i] = immovableColor;
                 }
             }
-            if (grid[grid.length - 1][i] != backgroundColor) {
+            if (setToBlack) {
                 continue;
             } else if (removeLeft) {
                 removeFromLeft++;
@@ -255,91 +255,6 @@ public class ProcessScreenshot {
 
         return deltaE;
     }
-
-    // private static void contour(BufferedImage image) {
-    // boolean[][] isContoured = new boolean[image.getHeight()][image.getWidth()];
-    // BufferedImage contourImage = new BufferedImage(image.getWidth(),
-    // image.getHeight(),
-    // BufferedImage.TYPE_INT_RGB);
-    // for (int i = 0; i < image.getHeight(); i++) {
-    // for (int j = 0; j < image.getWidth(); j++) {
-    // if ((image.getRGB(j, i) & 1) == 0)
-    // isContoured[i][j] = true;
-    // }
-    // }
-    // for (int i = 0; i < image.getHeight(); i++) {
-    // for (int j = 0; j < image.getWidth(); j++) {
-    // if (isContoured[i][j]) {
-    // continue;
-    // }
-    // counter = 0;
-    // ArrayList<int[]> contour = new ArrayList<int[]>();
-    // findAllAdjacentPixels(image, i, j, isContoured, contour);
-    // System.out.println(counter);
-    // if (counter < 5000) {
-    // continue;
-    // }
-    // Random random = new Random();
-    // int rgb = random.nextInt(0xFFFFFF);
-    // for (int[] pixel : contour) {
-    // contourImage.setRGB(pixel[1], pixel[0], rgb);
-    // }
-    // }
-    // }
-    // SaveImage.saveImage(contourImage, "contour", true);
-    // }
-
-    // private static void findAllAdjacentPixels(BufferedImage image, int startX,
-    // int startY, boolean[][] isContoured,
-    // ArrayList<int[]> contour) {
-    // int maxDistanceIncluded = 4;
-    // Stack<int[]> stack = new Stack<>();
-    // stack.push(new int[] { startX, startY });
-
-    // while (!stack.isEmpty()) {
-    // int[] current = stack.pop();
-    // int x = current[0];
-    // int y = current[1];
-
-    // if (isContoured[x][y])
-    // continue;
-    // counter++;
-    // isContoured[x][y] = true;
-    // contour.add(new int[] { x, y });
-
-    // int a = Math.max(x - maxDistanceIncluded, 0);
-    // int b = Math.max(y - maxDistanceIncluded, 0);
-    // int c = Math.min(x + maxDistanceIncluded, image.getHeight() - 1);
-    // int d = Math.min(y + maxDistanceIncluded, image.getWidth() - 1);
-
-    // for (int i = a; i <= c; i++) {
-    // for (int j = b; j <= d; j++) {
-    // if (!isContoured[i][j]) {
-    // stack.push(new int[] { i, j });
-    // }
-    // }
-    // }
-    // }
-    // }
-
-    // private static BufferedImage dilate(BufferedImage image) {
-    // BufferedImage dilate = new BufferedImage(image.getWidth(), image.getHeight(),
-    // BufferedImage.TYPE_BYTE_GRAY);
-    // for (int i = 1; i < image.getHeight() - 1; i++) {
-    // outer: for (int j = 1; j < image.getWidth() - 1; j++) {
-    // for (int offset1 = -1; offset1 <= 1; offset1++) {
-    // for (int offset2 = -1; offset2 <= 1; offset2++) {
-    // if (image.getRGB(j + offset2, i + offset1) == 0xFFFFFFFF) {
-    // dilate.setRGB(j, i, 0xFFFFFFFF);
-    // continue outer;
-    // }
-    // }
-    // }
-    // }
-    // }
-    // SaveImage.saveImage(dilate, "dilated", true);
-    // return dilate;
-    // }
 
     @SuppressWarnings(value = { "unused" })
     private static void printGrid(int[][] grid) {

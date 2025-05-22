@@ -4,6 +4,7 @@
 <?import javafx.scene.control.ColorPicker?>
 <?import javafx.scene.control.Menu?>
 <?import javafx.scene.control.MenuBar?>
+<?import javafx.scene.control.MenuItem?>
 <?import javafx.scene.control.RadioMenuItem?>
 <?import javafx.scene.control.Slider?>
 <?import javafx.scene.layout.BorderPane?>
@@ -22,6 +23,11 @@
                      <items>
                         <RadioMenuItem fx:id="leftMenuItem" mnemonicParsing="false" text="Left" />
                         <RadioMenuItem fx:id="rightMenuItem" mnemonicParsing="false" text="Right" />
+                     </items>
+                  </Menu>
+                  <Menu fx:id="createSolutionMenu" disable="true" mnemonicParsing="false" text="Solutions" visible="false">
+                     <items>
+                        <MenuItem mnemonicParsing="false" text="Create" />
                      </items>
                   </Menu>
                </menus>

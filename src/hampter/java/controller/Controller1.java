@@ -6,6 +6,7 @@ import java.io.FileWriter;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
 import java.util.concurrent.atomic.AtomicInteger;
 
@@ -13,6 +14,7 @@ import javax.imageio.ImageIO;
 
 import hampter.java.logic.Logic;
 import hampter.java.logic.ProcessScreenshot;
+import hampter.java.logic.PuzzleSolutionFileManager;
 import hampter.java.util.Swap;
 import javafx.animation.KeyFrame;
 import javafx.animation.Timeline;
@@ -29,6 +31,7 @@ import javafx.scene.Node;
 import javafx.scene.control.CheckBox;
 import javafx.scene.control.ColorPicker;
 import javafx.scene.control.Label;
+import javafx.scene.control.Menu;
 import javafx.scene.control.RadioMenuItem;
 import javafx.scene.control.Slider;
 import javafx.scene.control.ToggleGroup;
@@ -89,6 +92,8 @@ public class Controller1 {
     private RadioMenuItem leftMenuItem;
     @FXML
     private RadioMenuItem rightMenuItem;
+    @FXML
+    private Menu createSolutionMenu;
 
     private int width = 0;
     private int height = 0;
@@ -99,11 +104,13 @@ public class Controller1 {
     private boolean isTest = false;
     private MouseButton primaryButton = null;
     private String fileName = "config.properties";
+    private HashMap<Integer, ArrayList<Swap>> solutions;
 
     public void initialize() throws IOException {
         setupSliders();
         setupButtons();
         setupColors();
+        loadSolutions();
         setupSettings();
         resetBoard();
     }
@@ -204,9 +211,9 @@ public class Controller1 {
         verticalLinesTilePane.setVisible(false);
         horizontalLinesTilePane.setVisible(false);
         new Thread(() -> {
-            ArrayList<Swap> swaps = Logic.solveBoard(getBoard());
+            ArrayList<Swap> swaps = Logic.solveBoard(getBoard(), solutions);
             buttonsContainer.setDisable(false);
-            if (swaps.isEmpty())
+            if (swaps == null)
                 return;
             Platform.runLater(() -> {
                 setupLines();
@@ -267,8 +274,8 @@ public class Controller1 {
         return stackPane;
     }
 
-    private int[][] getBoard() {
-        int[][] board = new int[height][width];
+    private byte[][] getBoard() {
+        byte[][] board = new byte[height][width];
         ArrayList<Paint> colors = new ArrayList<>();
         colors.add(IMMOVABLE_COLOR);
         colors.add(BACKGROUND_COLOR);
@@ -280,7 +287,7 @@ public class Controller1 {
                 colors.add(color);
                 number = colors.size() - 1;
             }
-            board[i / width][i % width] = number - 1;
+            board[i / width][i % width] = (byte) (number - 1);
             i++;
         }
         return board;
@@ -365,21 +372,6 @@ public class Controller1 {
     }
 
     private BufferedImage takeScreenShot() {
-        // WritableImage screenCapture = robot.getScreenCapture(null,
-        // Screen.getPrimary().getBounds());
-        // BufferedImage image = null;
-        // try {
-        // image = ImageIO.read(new File("inputs/1600x900res.png"));
-        // } catch (IOException e) {
-        // e.printStackTrace();
-        // }
-        // BufferedImage grayscale = GrayScale.applyGrayScale(image, GrayScale.AVERAGE,
-        // true);
-        // BufferedImage thresholdGradientImage =
-        // EdgeDetection.getThresholdGradient(grayscale, EdgeDetection.SOBEL,
-        // EdgeDetection.PRESET_ALPHA, EdgeDetection.PRESET_BETA, true);
-        // contour(dilate(thresholdGradientImage));
-
         if (isTest) {
             try {
                 return ImageIO.read(new File("inputs/input2.png"));
@@ -476,6 +468,25 @@ public class Controller1 {
         rectangle.setArcWidth(10);
         colorContainer.getChildren().removeLast();
         colorContainer.getChildren().addAll(rectangle, addColor);
+    }
+
+    private void loadSolutions() throws IOException {
+        Platform.runLater(() -> {
+            try {
+                solutions = PuzzleSolutionFileManager.readSolutions();
+            } catch (IOException e) {
+                e.printStackTrace();
+            }
+        });
+        createSolutionMenu.setVisible(isTest);
+        createSolutionMenu.setDisable(!isTest);
+        createSolutionMenu.getItems().get(0).setOnAction(e -> {
+            try {
+                PuzzleSolutionFileManager.createPuzzleSolutionFile();
+            } catch (IOException e1) {
+                e1.printStackTrace();
+            }
+        });
     }
 
     private void setupSettings() throws IOException {
