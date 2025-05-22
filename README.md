@@ -35,7 +35,6 @@ To run the program:
 ## Known Issues
 
 - Automatic puzzle recognition from screenshots is approximately 70% accurate.
-- Some puzzles may take a long time to solve.
 - Currently, only 1920x1080 resolution and first monitor is supported for screenshots.
 - Currently, only speed challenge puzzles are supported for screenshots.
 - The program is only supported on Windows.
